@@ -1,0 +1,20 @@
+# Object files
+*.o
+*.So
+*.po
+
+# Libraries
+*.a
+
+# Shared objects
+*.so
+*.so.*
+
+# Vim files
+*.swp
+
+# Built man pages
+*.[0-9].gz
+
+# Built executables
+ggdi/ggdi
