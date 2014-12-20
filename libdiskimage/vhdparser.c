@@ -1,5 +1,4 @@
 
-#include "vhdparser.h"
 #include "vhdfooter.h"
 #include "filemap.h"
 #include "parser.h"

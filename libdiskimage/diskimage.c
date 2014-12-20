@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <strings.h>
 #include <fcntl.h>
-#include "vhdparser.h"
 #include "diskimage.h"
 
 #include "parser.h"
@@ -42,7 +41,6 @@ diskimage_open(char *path, char *format, struct diskimage **di)
 	(*di)->disk_type = DISK_TYPE_VHD;
 	(*di)->parser = parser;
 
-	/*vhd_parser_new(fd, &(*di)->parser);*/
 	(*di)->parser->construct(fd, &(*di)->parser_state);
 
 	(*di)->diskinfo = (*di)->parser->diskinfo((*di)->parser_state);
