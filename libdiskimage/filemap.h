@@ -2,8 +2,6 @@
 #ifndef FILEMAP_H
 #define FILEMAP_H
 
-#include <stdlib.h>
-
 struct filemap;
 
 struct filemap *filemap_create(int fd, size_t offset, size_t length);

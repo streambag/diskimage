@@ -3,7 +3,6 @@
 #define VHDFOOTER_H
 
 #include <sys/types.h>
-#include <uuid.h>
 #include <stdbool.h>
 
 #include "diskimage.h"
