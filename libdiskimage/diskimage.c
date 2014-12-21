@@ -7,13 +7,8 @@
 
 #include "parser.h"
 
-enum disk_type {
-	DISK_TYPE_VHD
-};
-
 struct diskimage {
 	int fd;
-	enum disk_type disk_type;
 	struct diskinfo diskinfo;
 	struct ldi_parser *parser;
 	void *parser_state;
@@ -38,7 +33,6 @@ diskimage_open(char *path, char *format, struct diskimage **di)
 
 	*di = malloc(sizeof(struct diskimage));
 	(*di)->fd = fd;
-	(*di)->disk_type = DISK_TYPE_VHD;
 	(*di)->parser = parser;
 
 	(*di)->parser->construct(fd, &(*di)->parser_state);

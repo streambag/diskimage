@@ -17,6 +17,13 @@ typedef enum {
 
 } LDI_ERROR;
 
+enum disk_type {
+	DISK_TYPE_UNKNOWN = 0,
+	DISK_TYPE_FIXED,
+	DISK_TYPE_DYNAMIC,
+	DISK_TYPE_DIFFERENCING
+};
+
 struct diskimage;
 
 struct diskinfo {

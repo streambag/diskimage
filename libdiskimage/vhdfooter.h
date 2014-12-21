@@ -9,15 +9,6 @@
 
 struct vhd_footer;
 
-
-/* TODO: Move to a common header */
-enum disk_type {
-	DISK_TYPE_UNKNOWN = 0,
-	DISK_TYPE_FIXED,
-	DISK_TYPE_DYNAMIC,
-	DISK_TYPE_DIFFERENCING
-};
-
 LDI_ERROR
 vhd_footer_new(void *source, struct vhd_footer **footer);
 
