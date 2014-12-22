@@ -3,6 +3,7 @@
 
 #include <sys/types.h>
 
+/* Defines all errors that can be returned by functions in libdiskimage */
 typedef enum {
 	/* No error */
 	LDI_ERR_NOERROR = 0,
@@ -17,6 +18,7 @@ typedef enum {
 
 } LDI_ERROR;
 
+/* Describes the type (not the format) of a disk */
 enum disk_type {
 	DISK_TYPE_UNKNOWN = 0,
 	DISK_TYPE_FIXED,
@@ -24,16 +26,37 @@ enum disk_type {
 	DISK_TYPE_DIFFERENCING
 };
 
+/*
+ * The internal state of the diskimage object. Created using diskimage_open.
+ * Needs to be passed to all other diskimage_* functions.
+ */
 struct diskimage;
 
+/* Information about a diskimage */
 struct diskinfo {
 	size_t disksize;
 };
 
+/*
+ * Opens the disk image at the supplied path with the given format.
+ * Allocates the diskimage structure that is passed to all successive calls.
+ * The diskimage structure must be deallocated using diskimage_destroy.
+ */
 LDI_ERROR diskimage_open(char *path, char *format, struct diskimage **di);
+
+/*
+ * Deallocates and sets the diskimage pointer ot zero.
+ */
 void diskimage_destroy(struct diskimage **di);
 
+/*
+ * Resturns a structure containing disk information.
+ */
 struct diskinfo diskimage_diskinfo(struct diskimage *di);
+
+/*
+ * Reads nbytes of data at offset into the supplied buffer.
+ */
 LDI_ERROR diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t offset);
 
 #endif /* DISKIMAGE_H */

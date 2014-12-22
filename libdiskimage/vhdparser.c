@@ -12,12 +12,16 @@
 
 #include <unistd.h>
 
+/* The internal parser state. */
 struct vhd_parser {
 	int fd;
 	struct vhd_footer *footer;
 	struct stat sb;
 };
 
+/*
+ * Creates the parser state.
+ */
 LDI_ERROR
 vhd_parser_new(int fd, void **parser)
 {
@@ -58,6 +62,9 @@ vhd_parser_new(int fd, void **parser)
 	return LDI_ERR_NOERROR;
 }
 
+/*
+ * Deallocates the parser state and sets the pointer to NULL.
+ */
 void
 vhd_parser_destroy(void **parser)
 {
@@ -70,6 +77,9 @@ vhd_parser_destroy(void **parser)
 	*parser = NULL;
 }
 
+/*
+ * Returns a diskinfo struct with properties for the disk.
+ */
 struct diskinfo
 vhd_parser_diskinfo(void *parser)
 {
@@ -82,6 +92,9 @@ vhd_parser_diskinfo(void *parser)
 	return result;
 }
 
+/*
+ * Reads nbytes att offset into the buffer.
+ */
 LDI_ERROR 
 vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 {
@@ -102,6 +115,11 @@ vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 
 }
 
+/*
+ * Define an ldi_parser struct for the VHD parser and define the parser
+ * using the PARSER_DEFINE macro. This will make the parser discoverable
+ * in diskimage.c.
+ */
 static struct ldi_parser vhd_parser_format = {
 	.name = "vhd",
 	.construct = vhd_parser_new,

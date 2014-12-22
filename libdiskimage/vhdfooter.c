@@ -1,13 +1,14 @@
-#include "vhdfooter.h"
 
 #include <sys/endian.h>
 #include <string.h>
 #include <stdlib.h>
 #include <uuid.h>
 #include <errno.h>
-
 #include <stdio.h>
 
+#include "vhdfooter.h"
+
+/* Defines the offsets used in VHD file footer. */
 #define COOKIE_OFFSET 0
 #define FEATURES_OFFSET 8
 #define FILE_FORMAT_VERSION_OFFSET 12
@@ -24,23 +25,27 @@
 #define UNIQUE_ID_OFFSET 68
 #define SAVED_STATE_OFFSET 84
 
+/* The geometry of a disk, as it is stored in the footer. */
 struct vhd_disk_geometry {
 	uint16_t cylinder;
 	uint8_t	heads;
 	uint8_t	sectors_per_track;
 };
 
+/* File version, as it is stored in the footer. */
 struct vhd_version {
 	uint16_t major;
 	uint16_t minor;
 };
 
+/* Features defined in the footer. */
 enum vhd_features {
 	VHD_FEATURES_NONE = 0,
 	VHD_FEATURES_TEMPORARY = 1,
 	VHD_FEATURES_RESERVED = 2
 };
 
+/* Defines the type of VHD disk this is. */
 enum vhd_disk_type {
 	VHD_TYPE_NONE = 0,
 	VHD_TYPE_RESERVED,
@@ -51,7 +56,7 @@ enum vhd_disk_type {
 	VHD_TYPE_RESERVED3
 };
 
-
+/* The entire structure of the VHD footer. */
 struct vhd_footer {
 	char	cookie[9];
 	enum vhd_features features;
@@ -71,8 +76,9 @@ struct vhd_footer {
 	uint32_t calculated_checksum;
 };
 
-
-
+/*
+ * Read a string from the source.
+ */
 static void
 read_chars(void *source, void *dest, uint32_t count)
 {
@@ -80,25 +86,36 @@ read_chars(void *source, void *dest, uint32_t count)
 	((char *)dest)[count] = 0;
 }
 
+/*
+ * Read a uint32 from the source.
+ */
 static uint32_t
 read_uint32(void *source) {
 	return (be32dec(source));
 }
 
+/*
+ * Read an int32 from the source.
+ */
 static int32_t
 read_int32(void *source)
 {
 	uint32_t us = be32dec(source);
-
-	return *((int32_t *) & us);
+	return *((int32_t *) &us);
 }
 
+/*
+ * Read a uint64 from the source.
+ */
 static uint64_t
 read_uint64(void *source)
 {
 	return (be64toh(*(uint64_t *) source));
 }
 
+/*
+ * Read the disk geometry from the source.
+ */
 static void
 read_disk_geometry(void *source, struct vhd_disk_geometry *dest)
 {
@@ -109,18 +126,27 @@ read_disk_geometry(void *source, struct vhd_disk_geometry *dest)
 	dest->sectors_per_track = *(uint8_t *) (bytes + 3);
 }
 
+/*
+ * Read a uuid from the source.
+ */
 static void
 read_uuid(void *source, uuid_t * dest)
 {
 	uuid_dec_be(source, dest);
 }
 
+/*
+ * Read a bool from the source.
+ */
 static bool
 read_bool(void *source)
 {
 	return *(uint8_t *) source == 1;
 }
 
+/*
+ * Read the file version from the source.
+ */
 static void
 read_version(void *source, struct vhd_version *dest)
 {
@@ -128,6 +154,9 @@ read_version(void *source, struct vhd_version *dest)
 	dest->minor = be16toh(((uint16_t *) source)[1]);
 }
 
+/*
+ * Calculate the checksum for a uint8 array.
+ */
 static uint32_t
 checksum_uint8_array(uint8_t *source, uint32_t count)
 {
@@ -141,49 +170,72 @@ checksum_uint8_array(uint8_t *source, uint32_t count)
 	return result;
 }
 
+/*
+ * Calculate the checksum for a string.
+ */
 static uint32_t
 checksum_chars(char *source, uint32_t count) 
 {
 	return checksum_uint8_array((uint8_t*)source, count);
 }
 
+/*
+ * Calculate the checksum for a uint32.
+ */
 static uint32_t
 checksum_uint32(uint32_t source)
 {
 	return checksum_uint8_array((uint8_t*)&source, 4);
 }
 
+/*
+ * Calculate the checksum for an int32.
+ */
 static uint32_t
 checksum_int32(int32_t source)
 {
 	return checksum_uint8_array((uint8_t*)&source, 4);
 }
 
+/*
+ * Calculate the checksum for a uint8.
+ */
 static uint32_t
 checksum_uint8(uint8_t source)
 {
 	return source;
 }
 
+/*
+ * Calculate the checksum for a uint16.
+ */
 static uint32_t
 checksum_uint16(uint16_t source)
 {
 	return checksum_uint8_array((uint8_t*)&source, 2);
 }
 
+/*
+ * Calculate the checksum for a uint64.
+ */
 static uint32_t
 checksum_uint64(uint64_t source)
 {
 	return checksum_uint8_array((uint8_t*)&source, 8);
 }
 
-
+/*
+ * Calculate the checksum for a version struct.
+ */
 static uint32_t
 checksum_version(struct vhd_version source)
 {
 	return checksum_uint16(source.major) + checksum_uint16(source.minor);
 }
 
+/*
+ * Calculate the checksum for a disk geometry struct.
+ */
 static uint32_t
 checksum_disk_geometry(struct vhd_disk_geometry source)
 {
@@ -192,6 +244,9 @@ checksum_disk_geometry(struct vhd_disk_geometry source)
 	    checksum_uint8(source.sectors_per_track);
 }
 
+/*
+ * Calculate the checksum for a uuid.
+ */
 static uint32_t
 checksum_uuid(uuid_t *source)
 {
@@ -201,12 +256,18 @@ checksum_uuid(uuid_t *source)
 	return checksum_uint8_array(buf, 16);
 }
 
+/*
+ * Calculate the checksum for a bool.
+ */
 static uint32_t
 checksum_bool(bool source)
 {
 	return source ? 1 : 0;
 }
 
+/*
+ * Calculate the checksum for the entire footer.
+ */
 static uint32_t
 calculate_checksum(struct vhd_footer *footer)
 {
@@ -227,11 +288,13 @@ calculate_checksum(struct vhd_footer *footer)
 	result += checksum_uuid(&footer->unique_id);
 	result += checksum_bool(footer->saved_state);
 
-
+	/* The checksum is the 1's complement of the sum of bytes. */
 	return ~result;
 }
 
-
+/*
+ * Reads the entire footer structure from the source.
+ */
 static void
 read_footer(void *source, struct vhd_footer *footer)
 {
@@ -259,8 +322,9 @@ read_footer(void *source, struct vhd_footer *footer)
 	footer->calculated_checksum = calculate_checksum(footer);
 }
 
+/* Print a uuid to stdout. */
 static void
-printf_uuid(uuid_t uuid)
+print_uuid(uuid_t uuid)
 {
 	char   *uuid_str;
 
@@ -271,6 +335,9 @@ printf_uuid(uuid_t uuid)
 	free(uuid_str); 
 }
 
+/*
+ * Creates a new vhd footer structure by reading from source.
+ */
 LDI_ERROR
 vhd_footer_new(void *source, struct vhd_footer **footer)
 {
@@ -285,6 +352,9 @@ vhd_footer_new(void *source, struct vhd_footer **footer)
 	return LDI_ERR_NOERROR;
 }
 
+/*
+ * Prints all the values in the footer, for debug purposes.
+ */
 void
 vhd_footer_printf(struct vhd_footer *footer)
 {
@@ -315,11 +385,14 @@ vhd_footer_printf(struct vhd_footer *footer)
 	}
 
 	printf("Unique id:\t\t");
-	printf_uuid(footer->unique_id);
+	print_uuid(footer->unique_id);
 	printf("\n");
 	printf("Saved state:\t\t%d\n", footer->saved_state);
 }
 
+/*
+ * Deallocates the memory for the footer and sets the pointer to NULL.
+ */
 void
 vhd_footer_destroy(struct vhd_footer **footer)
 {
@@ -327,12 +400,18 @@ vhd_footer_destroy(struct vhd_footer **footer)
 	*footer = NULL;
 }
 
+/*
+ * Returns true if the checksum for the footer is valid.
+ */
 bool
 vhd_footer_isvalid(struct vhd_footer *footer)
 {
 	return footer->checksum == footer->calculated_checksum;
 }
 
+/*
+ * Returns the disk type that this footer represents.
+ */
 enum disk_type
 vhd_footer_disk_type(struct vhd_footer *footer)
 {
@@ -348,12 +427,18 @@ vhd_footer_disk_type(struct vhd_footer *footer)
 	}
 }
 
+/* 
+ * Returns the current size of the disk.
+ */
 long
 vhd_footer_disksize(struct vhd_footer *footer)
 {
 	return footer->current_size;
 }
 
+/*
+ * Returns the offset to the beginning of the data.
+ */
 off_t
 vhd_footer_offset(struct vhd_footer *footer)
 {
