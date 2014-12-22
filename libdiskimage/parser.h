@@ -4,6 +4,9 @@
 
 #include <sys/linker_set.h>
 
+/*
+ * A common interface for all parsers.
+ */
 struct ldi_parser {
 	/* The name of the parser */
 	const char	*name;

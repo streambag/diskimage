@@ -9,6 +9,7 @@
 /* Statically cached page size. */
 static int pagesize = -1;
 
+/* Details about the mapped memory region. */
 struct filemap {
 	void *pointer;
 	size_t length;

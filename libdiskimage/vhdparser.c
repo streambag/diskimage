@@ -14,8 +14,11 @@
 
 /* The internal parser state. */
 struct vhd_parser {
+	/* The file descriptor of the opened file. */
 	int fd;
+	/* The structure read from the footer. */
 	struct vhd_footer *footer;
+	/* Information about the opened file. */
 	struct stat sb;
 };
 
@@ -93,7 +96,7 @@ vhd_parser_diskinfo(void *parser)
 }
 
 /*
- * Reads nbytes att offset into the buffer.
+ * Reads nbytes at offset into the buffer.
  */
 LDI_ERROR 
 vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)

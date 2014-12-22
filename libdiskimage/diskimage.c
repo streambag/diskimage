@@ -9,9 +9,13 @@
 
 /* Keeps track of all state between calls. */
 struct diskimage {
+	/* The file descriptor of the opened file. */
 	int fd;
+	/* Information about the disk. */
 	struct diskinfo diskinfo;
+	/* The definition of the parser for the file. */
 	struct ldi_parser *parser;
+	/* The internal state of the parser. */
 	void *parser_state;
 };
 
