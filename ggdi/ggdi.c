@@ -66,6 +66,10 @@ ggdi_serve(int unit, struct diskimage *di)
 		case BIO_DELETE:
 		case BIO_WRITE:
 			printf("Delete/write call\n");
+			if (diskimage_write(di, ggio.gctl_data, 
+			    ggio.gctl_length, 
+			    ggio.gctl_offset) != LDI_ERR_NOERROR) 
+				error = errno;
 			break;
 		default:
 			error = EOPNOTSUPP;

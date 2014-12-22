@@ -18,6 +18,8 @@ struct ldi_parser {
 	struct diskinfo	(*diskinfo)(void *parser);
 	/* Reads data from the disk into the buffer. */
 	LDI_ERROR	(*read)(void *parser, char *buf, size_t nbytes, off_t offset);
+	/* Writes the data from the buffer to the diskimage at the given offset. */
+	LDI_ERROR	(*write)(void *parser, char *buf, size_t nbytes, off_t offset);
 };
 
 /* Declare a linker set for all the parsers. */

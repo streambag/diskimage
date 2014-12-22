@@ -2,6 +2,8 @@
 #ifndef FILEMAP_H
 #define FILEMAP_H
 
+#include "diskimage.h"
+
 /* Represents a filemap object, used to map chunks of a file into memory. */
 struct filemap;
 
@@ -11,7 +13,7 @@ struct filemap;
  * Handles page aligning the range. While not strictly needed on FreeBSD, it 
  * is needed for POSIX compliance and when running in valgrind.
  */
-struct filemap *filemap_create(int fd, size_t offset, size_t length);
+LDI_ERROR filemap_create(int fd, size_t offset, size_t length, struct filemap **map);
 
 /*
  * Destroys the filemap object and unmaps the memory. Any pointer

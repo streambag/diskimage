@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <stdio.h>
+#include <errno.h>
 
 #include "filemap.h"
+#include "diskimage.h"
 
 
 /* Statically cached page size. */
@@ -54,27 +57,36 @@ align(size_t *offset, size_t *length)
  * Handles page aligning the range. While not strictly needed on FreeBSD, it 
  * is needed for POSIX compliance and when running in valgrind.
  */
-struct filemap *
-filemap_create(int fd, size_t offset, size_t length)
+LDI_ERROR
+filemap_create(int fd, size_t offset, size_t length, struct filemap **map)
 {
 	void *ptr;
 	size_t original_offset = offset;
 
 	/* Allocate memory for the filemap. */
-	struct filemap *result = malloc(sizeof(struct filemap));
+	*map = malloc(sizeof(struct filemap));
 
 	/* Make the range page aligned. */
 	align(&offset, &length);
 
 	/* Create the memory map. It will be unmapped in filemap_destroy. */
-	ptr = mmap(NULL, length, PROT_READ, 0, fd, offset);
+	ptr = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+
+	if (ptr == MAP_FAILED) {
+		/* We failed to create a map. */
+		printf("Failed to map memory: %i\n", errno);
+		/* Clean up */
+		free(*map);
+		*map = NULL;
+		return LDI_ERR_UNKNOWN;
+	}
 
 	/* Save all the information needed in the filemap object. */
-	result->padding_start = original_offset - offset;
-	result->pointer = ptr + result->padding_start;
-	result->length = length;
+	(*map)->padding_start = original_offset - offset;
+	(*map)->pointer = ptr + (*map)->padding_start;
+	(*map)->length = length;
 
-	return result;
+	return LDI_ERR_NOERROR;
 }
 
 /*

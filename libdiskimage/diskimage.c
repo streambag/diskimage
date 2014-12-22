@@ -41,7 +41,7 @@ diskimage_open(char *path, char *format, struct diskimage **di)
 		return LDI_ERR_FORMATUNKNOWN;
 
 	/* Open the backing file. */
-	fd = open(path, O_RDONLY | O_DIRECT | O_FSYNC);
+	fd = open(path, O_RDWR | O_DIRECT | O_FSYNC);
 
 	/* All state must be saved in the diskimage struct. */
 	*di = malloc(sizeof(struct diskimage));
@@ -84,7 +84,6 @@ diskimage_diskinfo(struct diskimage *di)
 	return di->parser->diskinfo(di->parser_state);
 }
 
-
 /*
  * Reads nbytes of data at offset into the supplied buffer.
  */
@@ -97,5 +96,19 @@ diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 
 	/* Hand over to the file format aware parser. */
 	return di->parser->read(di->parser_state, buf, nbytes, offset);
+}
+
+/*
+ * Writes nbytes from the buffer into the diskimage at the specified offset.
+ */
+LDI_ERROR 
+diskimage_write(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
+{
+	/* Check that the whole range is within the range of the disk. */
+	if (offset < 0 || offset+nbytes > di->diskinfo.disksize)
+		return LDI_ERR_OUTOFRANGE;
+
+	/* Hand over to the file format aware parser. */
+	return di->parser->write(di->parser_state, buf, nbytes, offset);
 }
 

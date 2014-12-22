@@ -46,7 +46,7 @@ vhd_parser_new(int fd, void **parser)
 
 	/* Read the footer */
 
-	map = filemap_create(vhd_parser->fd, vhd_parser->sb.st_size-512LL, 512);
+	filemap_create(vhd_parser->fd, vhd_parser->sb.st_size-512LL, 512, &map);
 
 	source = filemap_pointer(map);
 
@@ -101,21 +101,42 @@ vhd_parser_diskinfo(void *parser)
 LDI_ERROR 
 vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 {
-	off_t data_offset;
 	char *source;
 	struct filemap *map;
 	struct vhd_parser *vhd_parser;
 
 	vhd_parser = (struct vhd_parser*)parser;
 
-	map = filemap_create(vhd_parser->fd, offset, nbytes);
+	filemap_create(vhd_parser->fd, offset, nbytes, &map);
 	source = filemap_pointer(map);
 	memcpy(buf, source, nbytes);
 
 	filemap_destroy(&map);
 
 	return LDI_ERR_NOERROR;
+}
 
+/*
+ * Writes nbytes from the buffer into the diskimage at the specified offset.
+ */
+LDI_ERROR 
+vhd_parser_write(void *parser, char *buf, size_t nbytes, off_t offset)
+{
+	char *destination;
+	struct filemap *map;
+	struct vhd_parser *vhd_parser;
+
+	vhd_parser = (struct vhd_parser*)parser;
+
+	filemap_create(vhd_parser->fd, offset, nbytes, &map);
+	destination = filemap_pointer(map);
+	memcpy(destination, buf, nbytes);
+
+	filemap_destroy(&map);
+
+	fsync(vhd_parser->fd);
+
+	return LDI_ERR_NOERROR;
 }
 
 /*
@@ -128,6 +149,7 @@ static struct ldi_parser vhd_parser_format = {
 	.construct = vhd_parser_new,
 	.destructor = vhd_parser_destroy,
 	.diskinfo = vhd_parser_diskinfo,
-	.read = vhd_parser_read
+	.read = vhd_parser_read,
+	.write = vhd_parser_write
 };
 PARSER_DEFINE(vhd_parser_format);

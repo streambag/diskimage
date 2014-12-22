@@ -14,8 +14,9 @@ typedef enum {
 	/* File format is not supported */
 	LDI_ERR_FILENOTSUP,
 	/* A read or write outside the valid range */
-	LDI_ERR_OUTOFRANGE
-
+	LDI_ERR_OUTOFRANGE,
+	/* An unknown error occured */
+	LDI_ERR_UNKNOWN,
 } LDI_ERROR;
 
 /* Describes the type (not the format) of a disk */
@@ -58,5 +59,10 @@ struct diskinfo diskimage_diskinfo(struct diskimage *di);
  * Reads nbytes of data at offset into the supplied buffer.
  */
 LDI_ERROR diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t offset);
+
+/*
+ * Writes nbytes from the buffer into the diskimage at the specified offset.
+ */
+LDI_ERROR diskimage_write(struct diskimage *di, char *buf, size_t nbytes, off_t offset);
 
 #endif /* DISKIMAGE_H */
