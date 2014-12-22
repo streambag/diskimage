@@ -29,6 +29,7 @@ diskimage_open(char *path, char *format, struct diskimage **di)
 {
 	int fd;
 	struct ldi_parser *parser = NULL, **iter;
+	LDI_ERROR res;
 
 	/* Go through all formats and find the one that matches the format name. */
 	SET_FOREACH(iter, parsers) {
@@ -49,7 +50,12 @@ diskimage_open(char *path, char *format, struct diskimage **di)
 	(*di)->parser = parser;
 
 	/* Let the parser create its own format specific parser state. */
-	(*di)->parser->construct(fd, &(*di)->parser_state);
+	res = (*di)->parser->construct(fd, &(*di)->parser_state);
+	if (res != LDI_ERR_NOERROR) {
+		free(*di);
+		*di = NULL;
+		return res;
+	}
 
 	/* Get the disk info from the parser so that we know the disk size */
 	(*di)->diskinfo = (*di)->parser->diskinfo((*di)->parser_state);

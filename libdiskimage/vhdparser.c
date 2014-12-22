@@ -22,6 +22,8 @@ struct vhd_parser {
 	struct stat sb;
 };
 
+void vhd_parser_destroy(void **parser);
+
 /*
  * Creates the parser state.
  */
@@ -61,6 +63,12 @@ vhd_parser_new(int fd, void **parser)
 	filemap_destroy(&map);
 
 	vhd_footer_printf(vhd_parser->footer);
+
+	if (vhd_footer_disk_type(vhd_parser->footer) != DISK_TYPE_FIXED) {
+		/* Only fixed VHDs are supported. */
+		vhd_parser_destroy(parser);
+		return LDI_ERR_FILENOTSUP;
+	}
 
 	return LDI_ERR_NOERROR;
 }

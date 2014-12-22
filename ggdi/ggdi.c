@@ -54,8 +54,6 @@ ggdi_serve(int unit, struct diskimage *di)
 					error = ENOMEM;
 			}
 			if (error == 0) {
-				printf("Before diskimage_read\n");
-				printf("offset: %d\n", ggio.gctl_offset);
 				if (diskimage_read(di, ggio.gctl_data, 
 				    ggio.gctl_length, 
 				    ggio.gctl_offset) != LDI_ERR_NOERROR) 
@@ -65,7 +63,6 @@ ggdi_serve(int unit, struct diskimage *di)
 
 		case BIO_DELETE:
 		case BIO_WRITE:
-			printf("Delete/write call\n");
 			if (diskimage_write(di, ggio.gctl_data, 
 			    ggio.gctl_length, 
 			    ggio.gctl_offset) != LDI_ERR_NOERROR) 
@@ -89,7 +86,13 @@ ggdi_create(char *path)
 	struct diskimage *di;
 	struct diskinfo diskinfo;
 	int unit;
-	diskimage_open(path, "vhd", &di);
+	LDI_ERROR res;
+	res = diskimage_open(path, "vhd", &di);
+	if (res != LDI_ERR_NOERROR) {
+		printf("Error opening disk: %s\n", path);
+		exit(-1);
+	}
+	
 
 	diskinfo = diskimage_diskinfo(di);
 
