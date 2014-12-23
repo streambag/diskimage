@@ -17,7 +17,11 @@ struct diskimage {
 	struct ldi_parser *parser;
 	/* The internal state of the parser. */
 	void *parser_state;
+	/* Object used for logging. */
+	struct logger logger;
 };
+
+void empty_log_write(int level, void *privarg, char *fmt, ...) { }
 
 /*
  * Opens the disk image at the supplied path with the given format.
@@ -25,7 +29,7 @@ struct diskimage {
  * The diskimage structure must be deallocated using diskimage_destroy.
  */
 LDI_ERROR
-diskimage_open(char *path, char *format, struct diskimage **di)
+diskimage_open(char *path, char *format, struct logger logger, struct diskimage **di)
 {
 	int fd;
 	struct ldi_parser *parser = NULL, **iter;
@@ -49,8 +53,13 @@ diskimage_open(char *path, char *format, struct diskimage **di)
 	(*di)->fd = fd;
 	(*di)->parser = parser;
 
+	if (logger.write == NULL) {
+		logger.write = empty_log_write;
+	}
+	(*di)->logger = logger;
+
 	/* Let the parser create its own format specific parser state. */
-	res = (*di)->parser->construct(fd, &(*di)->parser_state);
+	res = (*di)->parser->construct(fd, &(*di)->parser_state, logger);
 	if (res != LDI_ERR_NOERROR) {
 		free(*di);
 		*di = NULL;
@@ -64,7 +73,7 @@ diskimage_open(char *path, char *format, struct diskimage **di)
 }
 
 /*
- * Deallocates and sets the diskimage pointer ot zero.
+ * Deallocates and sets the diskimage pointer to zero.
  */
 void
 diskimage_destroy(struct diskimage **di)

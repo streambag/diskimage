@@ -14,19 +14,13 @@ struct vhd_footer;
  * Creates a new vhd footer structure by reading from source.
  */
 LDI_ERROR
-vhd_footer_new(void *source, struct vhd_footer **footer);
+vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger);
 
 /*
  * Deallocates the memory for the footer and sets the pointer to NULL.
  */
 void
 vhd_footer_destroy(struct vhd_footer **footer);
-
-/*
- * Prints all the values in the footer, for debug purposes.
- */
-void
-vhd_footer_printf(struct vhd_footer *footer);
 
 /*
  * Returns true if the checksum for the footer is valid.

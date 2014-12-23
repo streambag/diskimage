@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <uuid.h>
 #include <errno.h>
-#include <stdio.h>
 
 #include "vhdfooter.h"
+#include "log.h"
 
 /* Defines the offsets used in VHD file footer. */
 #define COOKIE_OFFSET 0
@@ -24,6 +24,8 @@
 #define CHECKSUM_OFFSET 64
 #define UNIQUE_ID_OFFSET 68
 #define SAVED_STATE_OFFSET 84
+
+void log_footer(struct vhd_footer *footer);
 
 /* The geometry of a disk, as it is stored in the footer. */
 struct vhd_disk_geometry {
@@ -58,6 +60,7 @@ enum vhd_disk_type {
 
 /* The entire structure of the VHD footer. */
 struct vhd_footer {
+	/* The actual data read from the file. */
 	char	cookie[9];
 	enum vhd_features features;
 	struct vhd_version file_format_version;
@@ -74,6 +77,9 @@ struct vhd_footer {
 	uuid_t	unique_id;
 	bool	saved_state;
 	uint32_t calculated_checksum;
+
+	/* Other helper objects. */
+	struct logger logger;
 };
 
 /*
@@ -322,24 +328,25 @@ read_footer(void *source, struct vhd_footer *footer)
 	footer->calculated_checksum = calculate_checksum(footer);
 }
 
-/* Print a uuid to stdout. */
-static void
-print_uuid(uuid_t uuid)
+/*
+ * Get the string representatino of a uuid. Must be freed. 
+ */
+static char *
+get_uuid_string(uuid_t uuid)
 {
 	char   *uuid_str;
 
 	uint32_t status;
 
 	uuid_to_string(&uuid, &uuid_str, &status);
-	printf("%s", uuid_str);
-	free(uuid_str); 
+	return uuid_str;
 }
 
 /*
  * Creates a new vhd footer structure by reading from source.
  */
 LDI_ERROR
-vhd_footer_new(void *source, struct vhd_footer **footer)
+vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
 {
 	errno = 0;
 	*footer = malloc((unsigned int)sizeof(struct vhd_footer));
@@ -347,7 +354,10 @@ vhd_footer_new(void *source, struct vhd_footer **footer)
 		return LDI_ERR_NOMEM;
 	
 	}
+	(*footer)->logger = logger;
 	read_footer(source, *footer);
+
+	log_footer(*footer);
 
 	return LDI_ERR_NOERROR;
 }
@@ -356,38 +366,41 @@ vhd_footer_new(void *source, struct vhd_footer **footer)
  * Prints all the values in the footer, for debug purposes.
  */
 void
-vhd_footer_printf(struct vhd_footer *footer)
+log_footer(struct vhd_footer *footer)
 {
-	printf("Cookie:\t\t\t%s\n", footer->cookie);
-	printf("Features:\t\t%d\n", footer->features);
-	printf("File format version:\t%d.%d\n",
+	char *uuid_str;
+	LOG_VERBOSE(footer->logger, "Cookie:\t\t\t%s\n", footer->cookie);
+	LOG_VERBOSE(footer->logger, "Features:\t\t%d\n", footer->features);
+	LOG_VERBOSE(footer->logger, "File format version:\t%d.%d\n",
 	    footer->file_format_version.major,
 	    footer->file_format_version.minor);
-	printf("Data offset:\t\t%lu\n", footer->data_offset);
-	printf("Time stamp:\t\t%d\n", footer->time_stamp);
-	printf("Creator application:\t%s\n", footer->creator_application);
-	printf("Creator version:\t%d.%d\n",
+	LOG_VERBOSE(footer->logger, "Data offset:\t\t%lu\n", footer->data_offset);
+	LOG_VERBOSE(footer->logger, "Time stamp:\t\t%d\n", footer->time_stamp);
+	LOG_VERBOSE(footer->logger, "Creator application:\t%s\n", footer->creator_application);
+	LOG_VERBOSE(footer->logger, "Creator version:\t%d.%d\n",
 	    footer->creator_version.major, footer->creator_version.minor);
-	printf("Creator host os:\t%x\n", footer->creator_host_os);
-	printf("Original size:\t\t%lu\n", footer->original_size);
-	printf("Current size:\t\t%lu\n", footer->current_size);
-	printf("Disk geometry (c:h:s):\t%d:%d:%d\n",
+	LOG_VERBOSE(footer->logger, "Creator host os:\t%x\n", footer->creator_host_os);
+	LOG_VERBOSE(footer->logger, "Original size:\t\t%lu\n", footer->original_size);
+	LOG_VERBOSE(footer->logger, "Current size:\t\t%lu\n", footer->current_size);
+	LOG_VERBOSE(footer->logger, "Disk geometry (c:h:s):\t%d:%d:%d\n",
 	    footer->disk_geometry.cylinder,
 	    footer->disk_geometry.heads,
 	    footer->disk_geometry.sectors_per_track);
-	printf("Disk type:\t\t%d\n", footer->disk_type);
-	printf("Checksum:\t\t%u (", footer->checksum);
+	LOG_VERBOSE(footer->logger, "Disk type:\t\t%d\n", footer->disk_type);
+	LOG_VERBOSE(footer->logger, "Checksum:\t\t%u (", footer->checksum);
 	if (vhd_footer_isvalid(footer)) {
-		printf("valid)\n");
+		LOG_VERBOSE(footer->logger, "valid)\n");
 	} else {
-		printf("invalid real cheksum: %u)\n", 
+		LOG_VERBOSE(footer->logger, "invalid real cheksum: %u)\n", 
 		    footer->calculated_checksum);
 	}
 
-	printf("Unique id:\t\t");
-	print_uuid(footer->unique_id);
-	printf("\n");
-	printf("Saved state:\t\t%d\n", footer->saved_state);
+	uuid_str = get_uuid_string(footer->unique_id);
+	LOG_VERBOSE(footer->logger, "Unique id:\t\t%s", uuid_str);
+	free(uuid_str);
+	
+	LOG_VERBOSE(footer->logger, "\n");
+	LOG_VERBOSE(footer->logger, "Saved state:\t\t%d\n", footer->saved_state);
 }
 
 /*

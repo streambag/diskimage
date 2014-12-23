@@ -77,6 +77,15 @@ ggdi_serve(int unit, struct diskimage *di)
 	}
 }
 
+static void
+log_write(int level, void *privarg, char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+} 
+
 
 static void
 ggdi_create(char *path)
@@ -87,7 +96,10 @@ ggdi_create(char *path)
 	struct diskinfo diskinfo;
 	int unit;
 	LDI_ERROR res;
-	res = diskimage_open(path, "vhd", &di);
+	struct logger logger = {
+		.write = log_write
+	};
+	res = diskimage_open(path, "vhd", logger, &di);
 	if (res != LDI_ERR_NOERROR) {
 		printf("Error opening disk: %s\n", path);
 		exit(-1);

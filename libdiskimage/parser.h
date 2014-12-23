@@ -11,7 +11,7 @@ struct ldi_parser {
 	/* The name of the parser */
 	const char	*name;
 	/* A constructor for the parser state. */
-	LDI_ERROR	(*construct)(int fd, void **parser);
+	LDI_ERROR	(*construct)(int fd, void **parser, struct logger logger);
 	/* A destructor for the parser state */
 	void		(*destructor)(void **parser);
 	/* Returns diskinfo with properties for the disk. */

@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <unistd.h>
@@ -20,6 +19,8 @@ struct vhd_parser {
 	struct vhd_footer *footer;
 	/* Information about the opened file. */
 	struct stat sb;
+	/* Used for logging. */
+	struct logger logger;
 };
 
 void vhd_parser_destroy(void **parser);
@@ -28,7 +29,7 @@ void vhd_parser_destroy(void **parser);
  * Creates the parser state.
  */
 LDI_ERROR
-vhd_parser_new(int fd, void **parser)
+vhd_parser_new(int fd, void **parser, struct logger logger)
 {
 	struct filemap *map;
 	char	*source;
@@ -45,14 +46,15 @@ vhd_parser_new(int fd, void **parser)
 
 	vhd_parser->fd = fd;
 	fstat(fd, &vhd_parser->sb);
+	vhd_parser->logger = logger;
 
 	/* Read the footer */
 
-	filemap_create(vhd_parser->fd, vhd_parser->sb.st_size-512LL, 512, &map);
+	filemap_create(vhd_parser->fd, vhd_parser->sb.st_size-512LL, 512, &map, logger);
 
 	source = filemap_pointer(map);
 
-	result = vhd_footer_new(source, &vhd_parser->footer);
+	result = vhd_footer_new(source, &vhd_parser->footer, logger);
 	if (result != LDI_ERR_NOERROR) {
 		/* We couldn't allocate the footer. Clean up and return. */
 		free(*parser);
@@ -61,8 +63,6 @@ vhd_parser_new(int fd, void **parser)
 	}
 
 	filemap_destroy(&map);
-
-	vhd_footer_printf(vhd_parser->footer);
 
 	if (vhd_footer_disk_type(vhd_parser->footer) != DISK_TYPE_FIXED) {
 		/* Only fixed VHDs are supported. */
@@ -115,7 +115,7 @@ vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 
 	vhd_parser = (struct vhd_parser*)parser;
 
-	filemap_create(vhd_parser->fd, offset, nbytes, &map);
+	filemap_create(vhd_parser->fd, offset, nbytes, &map, vhd_parser->logger);
 	source = filemap_pointer(map);
 	memcpy(buf, source, nbytes);
 
@@ -136,7 +136,7 @@ vhd_parser_write(void *parser, char *buf, size_t nbytes, off_t offset)
 
 	vhd_parser = (struct vhd_parser*)parser;
 
-	filemap_create(vhd_parser->fd, offset, nbytes, &map);
+	filemap_create(vhd_parser->fd, offset, nbytes, &map, vhd_parser->logger);
 	destination = filemap_pointer(map);
 	memcpy(destination, buf, nbytes);
 

@@ -33,6 +33,20 @@ enum disk_type {
  */
 struct diskimage;
 
+/*
+ * Defines the logger interface. Users of the diskimage library can
+ * implement this to get log messages from the library.
+ */
+struct logger {
+	/* The logger function. Set to NULL to disable logging completely. */
+	void	(*write)(int level, void *privarg, char *fmt, ...);
+	/*
+	 * A user defined argument that is always sent to the logger
+	 * function. Can be used to track the configured log level.
+	 */
+	void	*privarg;
+};
+
 /* Information about a diskimage */
 struct diskinfo {
 	size_t disksize;
@@ -43,7 +57,7 @@ struct diskinfo {
  * Allocates the diskimage structure that is passed to all successive calls.
  * The diskimage structure must be deallocated using diskimage_destroy.
  */
-LDI_ERROR diskimage_open(char *path, char *format, struct diskimage **di);
+LDI_ERROR diskimage_open(char *path, char *format, struct logger logger, struct diskimage **di);
 
 /*
  * Deallocates and sets the diskimage pointer ot zero.

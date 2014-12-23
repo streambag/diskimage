@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <stdio.h>
 #include <errno.h>
 
 #include "filemap.h"
 #include "diskimage.h"
+#include "log.h"
 
 
 /* Statically cached page size. */
@@ -58,7 +58,7 @@ align(size_t *offset, size_t *length)
  * is needed for POSIX compliance and when running in valgrind.
  */
 LDI_ERROR
-filemap_create(int fd, size_t offset, size_t length, struct filemap **map)
+filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struct logger logger)
 {
 	void *ptr;
 	size_t original_offset = offset;
@@ -74,7 +74,7 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map)
 
 	if (ptr == MAP_FAILED) {
 		/* We failed to create a map. */
-		printf("Failed to map memory: %i\n", errno);
+		LOG_ERROR(logger, "Failed to map memory: %i\n", errno);
 		/* Clean up */
 		free(*map);
 		*map = NULL;
