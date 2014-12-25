@@ -4,7 +4,7 @@
 LIB=	diskimage
 CSTD?=	c99
 
-SRCS=	diskimage.c vhdfooter.c vhdparser.c filemap.c
+SRCS=	diskimage.c vhdserialization.c vhdfooter.c vhdparser.c filemap.c
 INCS=	diskimage.h
 MAN=	diskimage.3
 
