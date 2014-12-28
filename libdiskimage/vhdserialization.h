@@ -2,6 +2,8 @@
 #ifndef _VHDSERIALIZATION_H_
 #define _VHDSERIALIZATION_H_
 
+#include <uuid.h>
+#include <stdbool.h>
 #include "vhdtypes.h"
 
 /*

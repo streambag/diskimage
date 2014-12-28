@@ -6,6 +6,7 @@
 #include <errno.h>
 
 #include "vhdfooter.h"
+#include "vhdchecksum.h"
 #include "vhdserialization.h"
 #include "log.h"
 
@@ -64,123 +65,12 @@ struct vhd_footer {
 	uint32_t checksum;
 	uuid_t	unique_id;
 	bool	saved_state;
-	uint32_t calculated_checksum;
 
 	/* Other helper objects. */
+	uint32_t calculated_checksum;
 	struct logger logger;
 };
 
-
-/*
- * Calculate the checksum for a uint8 array.
- */
-static uint32_t
-checksum_uint8_array(uint8_t *source, uint32_t count)
-{
-	int i;
-	uint32_t result = 0;
-
-	for (i = 0; i < count; i++) {
-		result += *(source + i);
-	}
-
-	return result;
-}
-
-/*
- * Calculate the checksum for a string.
- */
-static uint32_t
-checksum_chars(char *source, uint32_t count) 
-{
-	return checksum_uint8_array((uint8_t*)source, count);
-}
-
-/*
- * Calculate the checksum for a uint32.
- */
-static uint32_t
-checksum_uint32(uint32_t source)
-{
-	return checksum_uint8_array((uint8_t*)&source, 4);
-}
-
-/*
- * Calculate the checksum for an int32.
- */
-static uint32_t
-checksum_int32(int32_t source)
-{
-	return checksum_uint8_array((uint8_t*)&source, 4);
-}
-
-/*
- * Calculate the checksum for a uint8.
- */
-static uint32_t
-checksum_uint8(uint8_t source)
-{
-	return source;
-}
-
-/*
- * Calculate the checksum for a uint16.
- */
-static uint32_t
-checksum_uint16(uint16_t source)
-{
-	return checksum_uint8_array((uint8_t*)&source, 2);
-}
-
-/*
- * Calculate the checksum for a uint64.
- */
-static uint32_t
-checksum_uint64(uint64_t source)
-{
-	return checksum_uint8_array((uint8_t*)&source, 8);
-}
-
-/*
- * Calculate the checksum for a version struct.
- */
-static uint32_t
-checksum_version(struct vhd_version source)
-{
-	return checksum_uint16(source.major) + checksum_uint16(source.minor);
-}
-
-/*
- * Calculate the checksum for a disk geometry struct.
- */
-static uint32_t
-checksum_disk_geometry(struct vhd_disk_geometry source)
-{
-	return checksum_uint16(source.cylinder) +
-	    checksum_uint8(source.heads) +
-	    checksum_uint8(source.sectors_per_track);
-}
-
-/*
- * Calculate the checksum for a uuid.
- */
-static uint32_t
-checksum_uuid(uuid_t *source)
-{
-	uint8_t buf[16];
-	uuid_enc_be(buf, source);
-	
-	return checksum_uint8_array(buf, 16);
-}
-
-/*
- * Calculate the checksum for a bool.
- */
-static uint32_t
-checksum_bool(bool source)
-{
-	return source ? 1 : 0;
-}
 
 /*
  * Calculate the checksum for the entire footer.
@@ -263,7 +153,6 @@ vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
 	*footer = malloc((unsigned int)sizeof(struct vhd_footer));
 	if (footer == NULL) {
 		return LDI_ERR_NOMEM;
-	
 	}
 	(*footer)->logger = logger;
 	read_footer(source, *footer);
