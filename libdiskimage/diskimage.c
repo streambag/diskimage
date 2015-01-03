@@ -5,6 +5,7 @@
 #include <fcntl.h>
 
 #include "diskimage.h"
+#include "log.h"
 #include "parser.h"
 
 /* Keeps track of all state between calls. */
@@ -105,12 +106,17 @@ diskimage_diskinfo(struct diskimage *di)
 LDI_ERROR 
 diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 {
+    LDI_ERROR result;
 	/* Check that the whole range is within the range of the disk. */
 	if (offset < 0 || offset+nbytes > di->diskinfo.disksize)
 		return LDI_ERR_OUTOFRANGE;
 
+    LOG_VERBOSE(di->logger, "Reading %d bytes at %d\n", nbytes, offset);
+
 	/* Hand over to the file format aware parser. */
-	return di->parser->read(di->parser_state, buf, nbytes, offset);
+	result = di->parser->read(di->parser_state, buf, nbytes, offset);
+    LOG_VERBOSE(di->logger, "Result: %d\n", result);
+    return result;
 }
 
 /*
@@ -119,11 +125,16 @@ diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 LDI_ERROR 
 diskimage_write(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 {
+    LDI_ERROR result;
 	/* Check that the whole range is within the range of the disk. */
 	if (offset < 0 || offset+nbytes > di->diskinfo.disksize)
 		return LDI_ERR_OUTOFRANGE;
 
+    LOG_VERBOSE(di->logger, "Writing %d bytes at %d\n", nbytes, offset);
+
 	/* Hand over to the file format aware parser. */
-	return di->parser->write(di->parser_state, buf, nbytes, offset);
+	result = di->parser->write(di->parser_state, buf, nbytes, offset);
+    LOG_VERBOSE(di->logger, "Result: %d\n", result);
+    return result;
 }
 
