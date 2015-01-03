@@ -36,6 +36,8 @@ struct vhd_parser {
 
 void vhd_parser_destroy(void **parser);
 
+const int SECTOR_SIZE = 512;
+
 /*
  * Reads the dynamic header data from disk.
  */
@@ -245,14 +247,43 @@ read_fixed(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 }
 
 /*
+ * Returns the block size (in number of sectors) for the VHD file.
+ */
+uint32_t
+get_block_size(struct vhd_parser *parser)
+{
+    return vhd_header_block_size(parser->header);
+}
+
+/*
+ * Returns the size (in bytes) of the sector bitmap that exists
+ * at the beginning of each block.
+ */
+uint32_t
+get_block_bitmap_size(struct vhd_parser *parser)
+{
+    uint32_t block_bitmap_size, sectors_per_block;
+    sectors_per_block = get_block_size(parser) / SECTOR_SIZE;
+
+    /* One bit is used for each sector. */
+    block_bitmap_size = sectors_per_block / 8;
+
+    /* The bitmap is padded to fill the last sector. */
+    block_bitmap_size = block_bitmap_size + 
+        (SECTOR_SIZE - block_bitmap_size % SECTOR_SIZE) % SECTOR_SIZE;
+
+    return block_bitmap_size;
+}
+
+
+/*
  * Reads data from a dynamic VHD.
  */
 LDI_ERROR
 read_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 {
-    const int sector_size = 512;
     int block, bytes_to_read, bytes_left_in_block;
-    uint32_t block_offset, block_size, sectors_per_block, block_bitmap_size;
+    uint32_t block_offset, block_size, block_bitmap_size;
     uint64_t file_offset;
     LDI_ERROR result;
 
@@ -261,14 +292,9 @@ read_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
      * an offset in the file, or be set to -1 to indicate that it is 
      * unused. In that case, we treat it as filled with zeros.
      */
-    block_size = vhd_header_block_size(parser->header);
-    sectors_per_block = block_size / sector_size;
+    block_size = get_block_size(parser);
+    block_bitmap_size = get_block_bitmap_size(parser);
 
-    /* One bit is used for each sector. */
-    block_bitmap_size = sectors_per_block / 8;
-    /* The bitmap is padded to fill the last sector. */
-    block_bitmap_size = block_bitmap_size + 
-        (sector_size - block_bitmap_size % sector_size) % sector_size;
     /* Loop until there is nothing more to read. */
     while (nbytes > 0) {
         /* Calculate the block number. */
@@ -293,7 +319,7 @@ read_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
             bzero(buf, bytes_to_read);
         } else {
             /* Calculate the actual position in the file to read at. */
-            file_offset = block_offset * sector_size + block_bitmap_size + offset%block_size;
+            file_offset = block_offset * SECTOR_SIZE + block_bitmap_size + offset%block_size;
 
             /* Do the actual read. */
             result = read_from_raw_offset(parser->fd, buf, bytes_to_read, file_offset, parser->logger);
@@ -331,31 +357,224 @@ vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 }
 
 /*
- * Writes nbytes from the buffer into the diskimage at the specified offset.
+ * Writes nbytes of data at offset from the buffer to the VHD.
  */
-LDI_ERROR 
-vhd_parser_write(void *parser, char *buf, size_t nbytes, off_t offset)
+LDI_ERROR
+write_fixed(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 {
 	char *destination;
 	struct filemap *map;
-	struct vhd_parser *vhd_parser;
 
-	vhd_parser = (struct vhd_parser*)parser;
-
-    if (vhd_parser->disk_type != DISK_TYPE_FIXED) {
-        /* We don't support writing to dynamic disks yet. */
-        return LDI_ERR_NOERROR;
-    }
-
-	filemap_create(vhd_parser->fd, offset, nbytes, &map, vhd_parser->logger);
+	filemap_create(parser->fd, offset, nbytes, &map, parser->logger);
 	destination = filemap_pointer(map);
 	memcpy(destination, buf, nbytes);
 
 	filemap_destroy(&map);
 
-	fsync(vhd_parser->fd);
-
 	return LDI_ERR_NOERROR;
+}
+
+/*
+ * Writes zeros to the fd at the specified position.
+ */
+LDI_ERROR
+write_zeros(int fd, off_t pos, size_t nbytes)
+{
+    char *buffer;
+    int bytes_written;
+
+    buffer = malloc(512);
+    bzero(buffer, 512);
+
+    while (nbytes > 0) {
+        bytes_written = pwrite(fd, buffer, MIN(512, nbytes), pos);
+
+        if (bytes_written < 0) {
+            /* Something went wrong. */
+            return LDI_ERR_IO;
+        }
+    
+        /* Update pos, nbytes */
+        pos += bytes_written;
+        nbytes -= bytes_written;
+    }
+
+    return LDI_ERR_NOERROR;
+}
+
+/*
+ * Extends a dynamic VHD with space for an extra block.
+ * Does not update the block allocation table.
+ */
+LDI_ERROR
+extend_file(struct vhd_parser *parser) {
+    size_t old_size, extension_size, new_size;
+	struct filemap *map;
+	char *destination;
+
+    old_size = parser->sb.st_size;
+
+    /* Write blocksize + sector_bitmap_size zeros. */
+    extension_size = get_block_size(parser) + get_block_bitmap_size(parser);
+    write_zeros(parser->fd, old_size, extension_size);
+
+    new_size = old_size + extension_size;
+
+	filemap_create(parser->fd, new_size - 512, 512, &map, parser->logger);
+	destination = filemap_pointer(map);
+
+    /* Write a new footer at the end. */
+    vhd_footer_write(parser->footer, destination);
+
+	filemap_destroy(&map);
+
+    /* Zero out the old footer. */
+    write_zeros(parser->fd, old_size - 512, 512);
+
+    /* Update parser->sb now that the size is updated. */
+	fstat(parser->fd, &parser->sb);
+
+    return LDI_ERR_NOERROR;
+}
+
+/*
+ * Updates the sector bitmap for a block
+ */
+void
+update_block_bitmap(void *destination, int sectors_in_block)
+{
+    char *bytes = destination;
+    while (sectors_in_block > 0) {
+        *bytes = 0xF;
+    
+        bytes++;
+        sectors_in_block -= 8;
+    }
+}
+
+/*
+ * Writes nbytes of data at offset from the buffer to a dynamic VHD.
+ */
+LDI_ERROR
+write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
+{
+    struct filemap *map;
+    const int sector_size = 512;
+    char *destination;
+    int block, bytes_to_write, bytes_left_in_block, sectors_per_block;
+    uint32_t block_offset, block_size, block_bitmap_size, offset_in_block;
+    uint64_t file_offset;
+    size_t original_file_size, bat_size;
+    off_t bat_offset;
+    LDI_ERROR result;
+
+    /* 
+     * The dynamic VHD is split into blocks. Each block can be mapped to 
+     * an offset in the file, or be set to -1 to indicate that it is 
+     * unused. In that case, we treat it as filled with zeros.
+     */
+    block_size = get_block_size(parser);
+    block_bitmap_size = get_block_bitmap_size(parser);
+
+    while (nbytes > 0) {
+    
+        /* Calculate the block number. */
+        block = offset/block_size;
+
+        /* Get the block offset in the file (in number of sectors). */
+        block_offset = vhd_bat_get_block_offset(parser->bat, block);
+
+        /* Calculate the number of bytes remaining in the block. */
+        bytes_left_in_block = block_size - offset%block_size;
+        /*
+         * If nbytes is larger than bytes_left_in_block, the read will
+         * continue in the next loop iteration with the next block.
+         */
+        bytes_to_write = MIN(bytes_left_in_block, nbytes);
+
+        if (block_offset == -1) {
+            /* This block is not yet allocated. */
+
+            original_file_size = parser->sb.st_size;
+
+            /* Make room for the new block by extending the file. */
+            extend_file(parser);
+            
+            /* 
+             * Update the BAT.
+             * The footer has been moved to the end of the extended file. The new
+             * block starts where the old footer started.
+             */
+            block_offset = original_file_size/512 - 1;
+            vhd_bat_add_block(parser->bat, block, block_offset);
+
+            bat_offset = vhd_header_table_offset(parser->header);
+            bat_size = vhd_header_max_table_entries(parser->header);
+
+            filemap_create(parser->fd, bat_offset, bat_offset + bat_size, &map, parser->logger);
+            destination = filemap_pointer(map);
+
+            vhd_bat_write(parser->bat, destination);
+
+            filemap_destroy(&map);
+
+        } 
+
+        offset_in_block = offset % block_size;
+
+        /* Do the actual write. */
+        filemap_create(parser->fd, block_offset * SECTOR_SIZE + block_bitmap_size + offset_in_block, bytes_to_write, &map, parser->logger);
+        destination = filemap_pointer(map);
+        memcpy(destination, buf, bytes_to_write);
+
+        filemap_destroy(&map);
+
+
+        /* Update the sector bitmap. */
+        filemap_create(parser->fd, block_offset * SECTOR_SIZE, block_bitmap_size, &map, parser->logger);
+        destination = filemap_pointer(map);
+
+        /* 
+         * Update the sector bitmap. This indicates which sectors in the block
+         * have data in them. Ideally this can be used to do some optimization
+         * during read. This is not what we do below. Instead, we indicate that
+         * all sectors in the block have data in them if one of them have. This
+         * is probably not ideal, but seems to be whan VirtualBox does.
+         */
+        sectors_per_block = get_block_size(parser) / SECTOR_SIZE;
+        update_block_bitmap(destination, sectors_per_block);
+
+        filemap_destroy(&map);
+
+        //fsync(parser->fd);
+        
+        /* update offset, buf and nbytes */
+        buf += bytes_to_write;
+        nbytes -= bytes_to_write;
+        offset += bytes_to_write;
+    }
+
+    return LDI_ERR_NOERROR;
+
+}
+
+/*
+ * Writes nbytes from the buffer into the diskimage at the specified offset.
+ */
+LDI_ERROR 
+vhd_parser_write(void *parser, char *buf, size_t nbytes, off_t offset)
+{
+	struct vhd_parser *vhd_parser = (struct vhd_parser*)parser;
+
+    switch (vhd_parser->disk_type) {
+        case DISK_TYPE_FIXED:
+            return write_fixed(vhd_parser, buf, nbytes, offset);
+        case DISK_TYPE_DYNAMIC:
+            return write_dynamic(vhd_parser, buf, nbytes, offset);
+        default:
+            /* Should not happen. */
+            return LDI_ERR_FILENOTSUP;
+    }
 }
 
 /*

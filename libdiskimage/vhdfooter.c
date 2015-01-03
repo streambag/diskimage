@@ -163,6 +163,32 @@ vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
 }
 
 /*
+ * Writes the footer to the destination buffer.
+ */
+LDI_ERROR
+vhd_footer_write(struct vhd_footer *footer, void *dest)
+{
+	uint8_t *bytes = (uint8_t *) dest;
+
+	write_chars(footer->cookie, bytes + COOKIE_OFFSET, 8);
+	write_uint32(footer->features, bytes + FEATURES_OFFSET);
+	write_version(&footer->file_format_version, bytes + FILE_FORMAT_VERSION_OFFSET);
+	write_uint64(footer->data_offset, bytes + DATA_OFFSET_OFFSET);
+	write_int32(footer->time_stamp, bytes + TIME_STAMP_OFFSET);
+	write_chars(&footer->creator_application, bytes + CREATOR_APPLICATION_OFFSET, 4);
+	write_version(&footer->creator_version, bytes + CREATOR_VERSION_OFFSET);
+	write_uint32(footer->creator_host_os, bytes + CREATOR_HOST_OS_OFFSET);
+	write_uint64(footer->original_size, bytes + ORIGINAL_SIZE_OFFSET);
+	write_uint64(footer->current_size, bytes + CURRENT_SIZE_OFFSET);
+	write_disk_geometry(&footer->disk_geometry, bytes + DISK_GEOMETRY_OFFSET);
+	write_uint32(footer->disk_type, bytes + DISK_TYPE_OFFSET);
+	write_uint32(footer->calculated_checksum, bytes + CHECKSUM_OFFSET);
+	write_uuid(&footer->unique_id, bytes + UNIQUE_ID_OFFSET);
+	write_bool(footer->saved_state, bytes + SAVED_STATE_OFFSET);
+
+    return LDI_ERR_NOERROR;
+}
+/*
  * Prints all the values in the footer, for debug purposes.
  */
 void

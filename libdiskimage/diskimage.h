@@ -15,6 +15,8 @@ typedef enum {
 	LDI_ERR_FILENOTSUP,
 	/* A read or write outside the valid range */
 	LDI_ERR_OUTOFRANGE,
+    /* Failure when reading or writing a file */
+    LDI_ERR_IO,
 	/* An unknown error occured */
 	LDI_ERR_UNKNOWN,
 } LDI_ERROR;

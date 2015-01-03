@@ -17,6 +17,12 @@ LDI_ERROR
 vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger);
 
 /*
+ * Writes the footer to the destination buffer.
+ */
+LDI_ERROR
+vhd_footer_write(struct vhd_footer *footer, void *dest);
+
+/*
  * Deallocates the memory for the footer and sets the pointer to NULL.
  */
 void
