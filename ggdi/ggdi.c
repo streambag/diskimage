@@ -1,3 +1,28 @@
+/*-
+ * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +32,7 @@
 #include <err.h>
 #include <sys/errno.h>
 #include <sys/bio.h>
+#include <assert.h>
 
 #include <geom/gate/g_gate.h>
 #include "ggate.h"
@@ -28,6 +54,7 @@ ggdi_serve(int unit, struct diskimage *di)
 	ggio.gctl_data = malloc(bsize);
 	for (;;) {
 		int error;
+once_again:
 		ggio.gctl_length = bsize;
 		ggio.gctl_error = 0;
 		g_gate_ioctl(G_GATE_CMD_START, &ggio);
@@ -40,6 +67,22 @@ ggdi_serve(int unit, struct diskimage *di)
 			free(ggio.gctl_data);
 			g_gate_close_device();
 			exit(EXIT_SUCCESS);
+
+		case ENOMEM:
+			/* Buffer too small. */
+			assert(ggio.gctl_cmd == BIO_DELETE ||
+			    ggio.gctl_cmd == BIO_WRITE);
+			ggio.gctl_data = realloc(ggio.gctl_data,
+			    ggio.gctl_length);
+			if (ggio.gctl_data != NULL) {
+				bsize = ggio.gctl_length;
+				goto once_again;
+			}
+			/* FALLTHROUGH */
+		case ENXIO:
+		default:
+			g_gate_xlog("ioctl(/dev/%s): %s.", G_GATE_CTL_NAME,
+			    strerror(error));
 		}
 
 		error = 0;
