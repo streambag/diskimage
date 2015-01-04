@@ -13,8 +13,7 @@
 static int pagesize = -1;
 
 /* Details about the mapped memory region. */
-struct filemap {
-	void *pointer;
+struct filemap_internal {
 	size_t length;
 	size_t padding_start;
 };
@@ -66,6 +65,8 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
 	/* Allocate memory for the filemap. */
 	*map = malloc(sizeof(struct filemap));
 
+    (*map)->internal = malloc(sizeof(struct filemap_internal));
+
 	/* Make the range page aligned. */
 	align(&offset, &length);
 
@@ -82,9 +83,9 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
 	}
 
 	/* Save all the information needed in the filemap object. */
-	(*map)->padding_start = original_offset - offset;
-	(*map)->pointer = ptr + (*map)->padding_start;
-	(*map)->length = length;
+	(*map)->internal->padding_start = original_offset - offset;
+	(*map)->pointer = ptr + (*map)->internal->padding_start;
+	(*map)->internal->length = length;
 
 	return LDI_ERR_NOERROR;
 }
@@ -96,15 +97,8 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
  */
 void
 filemap_destroy(struct filemap **map) {
-	munmap((*map)->pointer - (*map)->padding_start, (*map)->length);
+	munmap((*map)->pointer - (*map)->internal->padding_start, (*map)->internal->length);
+    free((*map)->internal);
 	free(*map);
 	*map = NULL;
-}
-
-/*
- * Returns the pointer to the memory mapped by this filemap.
- */
-void *
-filemap_pointer(struct filemap *map) {
-	return map->pointer;
 }

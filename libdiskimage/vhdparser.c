@@ -46,15 +46,12 @@ read_dynamic_header(struct vhd_parser *parser)
 {
 	struct filemap *map;
     off_t header_offset;
-	char	*source;
     size_t bat_size;
 	LDI_ERROR result;
     header_offset = vhd_footer_offset(parser->footer);
+
     filemap_create(parser->fd, header_offset, header_offset+1024, &map, parser->logger);
-    source = filemap_pointer(map);
-
-    result = vhd_header_new(source, &parser->header, parser->logger);
-
+    result = vhd_header_new(map->pointer, &parser->header, parser->logger);
     filemap_destroy(&map);
 
     return result;
@@ -68,7 +65,6 @@ read_bat_data(struct vhd_parser *parser)
 {
 	struct filemap *map;
     off_t bat_offset;
-	char	*source;
     size_t bat_size;
 	LDI_ERROR result;
 
@@ -76,10 +72,7 @@ read_bat_data(struct vhd_parser *parser)
     bat_size = vhd_header_max_table_entries(parser->header);
 
     filemap_create(parser->fd, bat_offset, bat_offset + bat_size, &map, parser->logger);
-    source = filemap_pointer(map);
-
-    result = vhd_bat_new(source, &parser->bat, bat_size, parser->logger);
-
+    result = vhd_bat_new(map->pointer, &parser->bat, bat_size, parser->logger);
     filemap_destroy(&map);
 
     return LDI_ERR_NOERROR;
@@ -117,13 +110,10 @@ LDI_ERROR
 read_footer(struct vhd_parser *parser)
 {
 	struct filemap *map;
-	char	*source;
 	LDI_ERROR result;
+
 	filemap_create(parser->fd, parser->sb.st_size-512LL, 512, &map, parser->logger);
-
-	source = filemap_pointer(map);
-
-	result = vhd_footer_new(source, &parser->footer, parser->logger);
+	result = vhd_footer_new(map->pointer, &parser->footer, parser->logger);
 	filemap_destroy(&map);
 
     return result;
@@ -227,12 +217,9 @@ vhd_parser_diskinfo(void *parser)
 LDI_ERROR
 read_from_raw_offset(int fd, char *buf, size_t nbytes, off_t offset, struct logger logger)
 {
-	char *source;
 	struct filemap *map;
     filemap_create(fd, offset, nbytes, &map, logger);
-    source = filemap_pointer(map);
-    memcpy(buf, source, nbytes);
-
+    memcpy(buf, map->pointer, nbytes);
     filemap_destroy(&map);
     return LDI_ERR_NOERROR;
 }
@@ -362,13 +349,10 @@ vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 LDI_ERROR
 write_fixed(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 {
-	char *destination;
 	struct filemap *map;
 
 	filemap_create(parser->fd, offset, nbytes, &map, parser->logger);
-	destination = filemap_pointer(map);
-	memcpy(destination, buf, nbytes);
-
+	memcpy(map->pointer, buf, nbytes);
 	filemap_destroy(&map);
 
 	return LDI_ERR_NOERROR;
@@ -410,7 +394,6 @@ LDI_ERROR
 extend_file(struct vhd_parser *parser) {
     size_t old_size, extension_size, new_size;
 	struct filemap *map;
-	char *destination;
 
     old_size = parser->sb.st_size;
 
@@ -420,12 +403,9 @@ extend_file(struct vhd_parser *parser) {
 
     new_size = old_size + extension_size;
 
-	filemap_create(parser->fd, new_size - 512, 512, &map, parser->logger);
-	destination = filemap_pointer(map);
-
     /* Write a new footer at the end. */
-    vhd_footer_write(parser->footer, destination);
-
+	filemap_create(parser->fd, new_size - 512, 512, &map, parser->logger);
+    vhd_footer_write(parser->footer, map->pointer);
 	filemap_destroy(&map);
 
     /* Zero out the old footer. */
@@ -460,7 +440,6 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 {
     struct filemap *map;
     const int sector_size = 512;
-    char *destination;
     int block, bytes_to_write, bytes_left_in_block, sectors_per_block;
     uint32_t block_offset, block_size, block_bitmap_size, offset_in_block;
     uint64_t file_offset;
@@ -512,10 +491,7 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
             bat_size = vhd_header_max_table_entries(parser->header);
 
             filemap_create(parser->fd, bat_offset, bat_offset + bat_size, &map, parser->logger);
-            destination = filemap_pointer(map);
-
-            vhd_bat_write(parser->bat, destination);
-
+            vhd_bat_write(parser->bat, map->pointer);
             filemap_destroy(&map);
 
         } 
@@ -524,15 +500,10 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 
         /* Do the actual write. */
         filemap_create(parser->fd, block_offset * SECTOR_SIZE + block_bitmap_size + offset_in_block, bytes_to_write, &map, parser->logger);
-        destination = filemap_pointer(map);
-        memcpy(destination, buf, bytes_to_write);
+        memcpy(map->pointer, buf, bytes_to_write);
 
         filemap_destroy(&map);
 
-
-        /* Update the sector bitmap. */
-        filemap_create(parser->fd, block_offset * SECTOR_SIZE, block_bitmap_size, &map, parser->logger);
-        destination = filemap_pointer(map);
 
         /* 
          * Update the sector bitmap. This indicates which sectors in the block
@@ -541,13 +512,11 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
          * all sectors in the block have data in them if one of them have. This
          * is probably not ideal, but seems to be whan VirtualBox does.
          */
+        filemap_create(parser->fd, block_offset * SECTOR_SIZE, block_bitmap_size, &map, parser->logger);
         sectors_per_block = get_block_size(parser) / SECTOR_SIZE;
-        update_block_bitmap(destination, sectors_per_block);
-
+        update_block_bitmap(map->pointer, sectors_per_block);
         filemap_destroy(&map);
 
-        //fsync(parser->fd);
-        
         /* update offset, buf and nbytes */
         buf += bytes_to_write;
         nbytes -= bytes_to_write;

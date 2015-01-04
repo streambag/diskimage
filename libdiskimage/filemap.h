@@ -4,8 +4,13 @@
 
 #include "diskimage.h"
 
+struct filemap_internal;
+
 /* Represents a filemap object, used to map chunks of a file into memory. */
-struct filemap;
+struct filemap {
+    char *pointer;
+    struct filemap_internal *internal;
+};
 
 /*
  * Memory maps the requested file range into memory. The returned filemap
@@ -21,10 +26,5 @@ LDI_ERROR filemap_create(int fd, size_t offset, size_t length, struct filemap **
  * this function.
  */
 void filemap_destroy(struct filemap **map);
-
-/*
- * Returns the pointer to the memory mapped by this filemap.
- */
-void * filemap_pointer(struct filemap *map);
 
 #endif /* FILEMAP_H */
