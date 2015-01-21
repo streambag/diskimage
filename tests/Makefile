@@ -10,6 +10,6 @@ CFLAGS+= -g
 DPADD=	${LIBGEOM} ${LIBUTIL} ${LIBDISKIMAGE}
 LDADD=	-lgeom -lutil -ldiskimage
 
-ATF_TESTS_C=	vhdfooter_test
+ATF_TESTS_C=	vhdfooter_test vmdkextentdescriptor_test
 
 .include <bsd.test.mk>
