@@ -6,7 +6,6 @@
 #include "vhdfooter.h"
 #include "diskimage.h"
 
-void empty_log_write(int level, void *privarg, char *fmt, ...) { }
 
 char valid_footer[512] = {
     0x63, 0x6F, 0x6E, 0x65, 0x63, 0x74, 0x69, 0x78,
@@ -35,6 +34,8 @@ char invalid_footer[512] = {
     0x50, 0x11, 0x9D, 0x4D, 0x84, 0x11, 0xE9, 0x5E,
     0xCA, 0xE3, 0x5F, 0x35,
 };
+
+void empty_log_write(int level, void *privarg, char *fmt, ...) { }
 
 struct logger empty_logger = {
     .write = empty_log_write
