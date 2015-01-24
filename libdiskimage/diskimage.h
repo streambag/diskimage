@@ -19,6 +19,8 @@ typedef enum {
     LDI_ERR_IO,
 	/* An unknown error occured */
 	LDI_ERR_UNKNOWN,
+    /* Error when parsing a file. Possibly corrupt. */
+    LDI_ERR_PARSEERROR,
 } LDI_ERROR;
 
 /* Describes the type (not the format) of a disk */
