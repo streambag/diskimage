@@ -3,7 +3,6 @@
 #include "vhdbat.h"
 #include "vhdfooter.h"
 #include "vhdheader.h"
-#include "filemap.h"
 #include "parser.h"
 
 #include <errno.h>
@@ -16,10 +15,12 @@
 
 #include <unistd.h>
 
+#include "fileinterface.h"
+
 /* The internal parser state. */
 struct vhd_parser {
 	/* The file descriptor of the opened file. */
-	int fd;
+	struct file *file;
     /* The type of disk. */
     enum disk_type disk_type;
 	/* The structure read from the footer. */
@@ -29,7 +30,7 @@ struct vhd_parser {
     /* The block allocation table. */
     struct vhd_bat *bat;
 	/* Information about the opened file. */
-	struct stat sb;
+	size_t filesize;
 	/* Used for logging. */
 	struct logger logger;
 };
@@ -50,7 +51,7 @@ read_dynamic_header(struct vhd_parser *parser)
 	LDI_ERROR result;
     header_offset = vhd_footer_offset(parser->footer);
 
-    filemap_create(parser->fd, header_offset, header_offset+1024, &map, parser->logger);
+    file_getmap(parser->file, header_offset, header_offset+1024, &map, parser->logger);
     result = vhd_header_new(map->pointer, &parser->header, parser->logger);
     filemap_destroy(&map);
 
@@ -71,7 +72,7 @@ read_bat_data(struct vhd_parser *parser)
     bat_offset = vhd_header_table_offset(parser->header);
     bat_size = vhd_header_max_table_entries(parser->header);
 
-    filemap_create(parser->fd, bat_offset, bat_offset + bat_size, &map, parser->logger);
+    file_getmap(parser->file, bat_offset, bat_offset + bat_size, &map, parser->logger);
     result = vhd_bat_new(map->pointer, &parser->bat, bat_size, parser->logger);
     filemap_destroy(&map);
 
@@ -112,7 +113,7 @@ read_footer(struct vhd_parser *parser)
 	struct filemap *map;
 	LDI_ERROR result;
 
-	filemap_create(parser->fd, parser->sb.st_size-512LL, 512, &map, parser->logger);
+	file_getmap(parser->file, parser->filesize-512LL, 512, &map, parser->logger);
 	result = vhd_footer_new(map->pointer, &parser->footer, parser->logger);
 	filemap_destroy(&map);
 
@@ -140,7 +141,7 @@ read_format_specific_data(struct vhd_parser *parser) {
  * Creates the parser state.
  */
 LDI_ERROR
-vhd_parser_new(int fd, void **parser, struct logger logger)
+vhd_parser_new(struct file *file, void **parser, struct logger logger)
 {
 	LDI_ERROR result;
 	struct vhd_parser *vhd_parser; 
@@ -152,10 +153,9 @@ vhd_parser_new(int fd, void **parser, struct logger logger)
 	}
 
 	vhd_parser = (struct vhd_parser*)(*parser);
+    vhd_parser->file = file;
 
-
-	vhd_parser->fd = fd;
-	fstat(fd, &vhd_parser->sb);
+    vhd_parser->filesize = file_getsize(file);
 	vhd_parser->logger = logger;
     /* Set pointers to NULL as default. */
     vhd_parser->footer = NULL;
@@ -215,10 +215,10 @@ vhd_parser_diskinfo(void *parser)
  * Reads data from a raw file (not disk) offset.
  */
 LDI_ERROR
-read_from_raw_offset(int fd, char *buf, size_t nbytes, off_t offset, struct logger logger)
+read_from_raw_offset(struct file *file, char *buf, size_t nbytes, off_t offset, struct logger logger)
 {
 	struct filemap *map;
-    filemap_create(fd, offset, nbytes, &map, logger);
+    file_getmap(file, offset, nbytes, &map, logger);
     memcpy(buf, map->pointer, nbytes);
     filemap_destroy(&map);
     return LDI_ERR_NOERROR;
@@ -230,7 +230,7 @@ read_from_raw_offset(int fd, char *buf, size_t nbytes, off_t offset, struct logg
 LDI_ERROR
 read_fixed(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 {
-    return read_from_raw_offset(parser->fd, buf, nbytes, offset, parser->logger);
+    return read_from_raw_offset(parser->file, buf, nbytes, offset, parser->logger);
 }
 
 /*
@@ -309,7 +309,7 @@ read_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
             file_offset = block_offset * SECTOR_SIZE + block_bitmap_size + offset%block_size;
 
             /* Do the actual read. */
-            result = read_from_raw_offset(parser->fd, buf, bytes_to_read, file_offset, parser->logger);
+            result = read_from_raw_offset(parser->file, buf, bytes_to_read, file_offset, parser->logger);
             if (result != LDI_ERR_NOERROR) {
                 return result;
             }
@@ -351,40 +351,13 @@ write_fixed(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 {
 	struct filemap *map;
 
-	filemap_create(parser->fd, offset, nbytes, &map, parser->logger);
+	file_getmap(parser->file, offset, nbytes, &map, parser->logger);
 	memcpy(map->pointer, buf, nbytes);
 	filemap_destroy(&map);
 
 	return LDI_ERR_NOERROR;
 }
 
-/*
- * Writes zeros to the fd at the specified position.
- */
-LDI_ERROR
-write_zeros(int fd, off_t pos, size_t nbytes)
-{
-    char *buffer;
-    int bytes_written;
-
-    buffer = malloc(512);
-    bzero(buffer, 512);
-
-    while (nbytes > 0) {
-        bytes_written = pwrite(fd, buffer, MIN(512, nbytes), pos);
-
-        if (bytes_written < 0) {
-            /* Something went wrong. */
-            return LDI_ERR_IO;
-        }
-    
-        /* Update pos, nbytes */
-        pos += bytes_written;
-        nbytes -= bytes_written;
-    }
-
-    return LDI_ERR_NOERROR;
-}
 
 /*
  * Extends a dynamic VHD with space for an extra block.
@@ -395,24 +368,26 @@ extend_file(struct vhd_parser *parser) {
     size_t old_size, extension_size, new_size;
 	struct filemap *map;
 
-    old_size = parser->sb.st_size;
+    old_size = parser->filesize;
 
     /* Write blocksize + sector_bitmap_size zeros. */
     extension_size = get_block_size(parser) + get_block_bitmap_size(parser);
-    write_zeros(parser->fd, old_size, extension_size);
-
     new_size = old_size + extension_size;
 
+    file_setsize(parser->file, new_size);
+
     /* Write a new footer at the end. */
-	filemap_create(parser->fd, new_size - 512, 512, &map, parser->logger);
+	file_getmap(parser->file, new_size - 512, 512, &map, parser->logger);
     vhd_footer_write(parser->footer, map->pointer);
 	filemap_destroy(&map);
 
     /* Zero out the old footer. */
-    write_zeros(parser->fd, old_size - 512, 512);
+    file_getmap(parser->file, old_size - 512, 512, &map, parser->logger);;
+    bzero(map->pointer, 512);
+	filemap_destroy(&map);
 
-    /* Update parser->sb now that the size is updated. */
-	fstat(parser->fd, &parser->sb);
+    /* Update parser->filesize now that the size is updated. */
+    parser->filesize = file_getsize(parser->file);
 
     return LDI_ERR_NOERROR;
 }
@@ -474,7 +449,7 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
         if (block_offset == -1) {
             /* This block is not yet allocated. */
 
-            original_file_size = parser->sb.st_size;
+            original_file_size = parser->filesize;
 
             /* Make room for the new block by extending the file. */
             extend_file(parser);
@@ -490,7 +465,7 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
             bat_offset = vhd_header_table_offset(parser->header);
             bat_size = vhd_header_max_table_entries(parser->header);
 
-            filemap_create(parser->fd, bat_offset, bat_offset + bat_size, &map, parser->logger);
+            file_getmap(parser->file, bat_offset, bat_offset + bat_size, &map, parser->logger);
             vhd_bat_write(parser->bat, map->pointer);
             filemap_destroy(&map);
 
@@ -499,9 +474,8 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
         offset_in_block = offset % block_size;
 
         /* Do the actual write. */
-        filemap_create(parser->fd, block_offset * SECTOR_SIZE + block_bitmap_size + offset_in_block, bytes_to_write, &map, parser->logger);
+        file_getmap(parser->file, block_offset * SECTOR_SIZE + block_bitmap_size + offset_in_block, bytes_to_write, &map, parser->logger);
         memcpy(map->pointer, buf, bytes_to_write);
-
         filemap_destroy(&map);
 
 
@@ -512,7 +486,7 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
          * all sectors in the block have data in them if one of them have. This
          * is probably not ideal, but seems to be whan VirtualBox does.
          */
-        filemap_create(parser->fd, block_offset * SECTOR_SIZE, block_bitmap_size, &map, parser->logger);
+        file_getmap(parser->file, block_offset * SECTOR_SIZE, block_bitmap_size, &map, parser->logger);
         sectors_per_block = get_block_size(parser) / SECTOR_SIZE;
         update_block_bitmap(map->pointer, sectors_per_block);
         filemap_destroy(&map);

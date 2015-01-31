@@ -4,6 +4,8 @@
 
 #include <sys/linker_set.h>
 
+#include "fileinterface.h"
+
 /*
  * A common interface for all parsers.
  */
@@ -11,7 +13,7 @@ struct ldi_parser {
 	/* The name of the parser */
 	const char	*name;
 	/* A constructor for the parser state. */
-	LDI_ERROR	(*construct)(int fd, void **parser, struct logger logger);
+	LDI_ERROR	(*construct)(struct file *file, void **parser, struct logger logger);
 	/* A destructor for the parser state */
 	void		(*destructor)(void **parser);
 	/* Returns diskinfo with properties for the disk. */

@@ -5,13 +5,14 @@
 #include <fcntl.h>
 
 #include "diskimage.h"
+#include "fileinterface.h"
 #include "log.h"
 #include "parser.h"
 
 /* Keeps track of all state between calls. */
 struct diskimage {
-	/* The file descriptor of the opened file. */
-	int fd;
+    struct fileinterface *fileinterface;
+    struct file *file;
 	/* Information about the disk. */
 	struct diskinfo diskinfo;
 	/* The definition of the parser for the file. */
@@ -32,7 +33,8 @@ void empty_log_write(int level, void *privarg, char *fmt, ...) { }
 LDI_ERROR
 diskimage_open(char *path, char *format, struct logger logger, struct diskimage **di)
 {
-	int fd;
+    struct file *file;
+    struct fileinterface *fileinterface;
 	struct ldi_parser *parser = NULL, **iter;
 	LDI_ERROR res;
 
@@ -46,13 +48,16 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 	if (parser == NULL)
 		return LDI_ERR_FORMATUNKNOWN;
 
+    fileinterface_create(&fileinterface);
+
 	/* Open the backing file. */
-	fd = open(path, O_RDWR | O_DIRECT | O_FSYNC);
+	file_open(fileinterface, path, &file);
 
 	/* All state must be saved in the diskimage struct. */
 	*di = malloc(sizeof(struct diskimage));
-	(*di)->fd = fd;
 	(*di)->parser = parser;
+    (*di)->fileinterface = fileinterface;
+    (*di)->file = file;
 
 	if (logger.write == NULL) {
 		logger.write = empty_log_write;
@@ -60,7 +65,7 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 	(*di)->logger = logger;
 
 	/* Let the parser create its own format specific parser state. */
-	res = (*di)->parser->construct(fd, &(*di)->parser_state, logger);
+	res = (*di)->parser->construct(file, &(*di)->parser_state, logger);
 	if (res != LDI_ERR_NOERROR) {
 		free(*di);
 		*di = NULL;
@@ -83,7 +88,7 @@ diskimage_destroy(struct diskimage **di)
 	(*di)->parser->destructor(&((*di)->parser_state));
 
 	/* Close the file. */
-	close((*di)->fd);
+	file_close(&(*di)->file);
 
 	/* Free the memory allocated for the diskimage struct. */
 	free(*di);
