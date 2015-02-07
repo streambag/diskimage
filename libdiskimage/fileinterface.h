@@ -27,6 +27,11 @@ void fileinterface_create(struct fileinterface **fi);
 void fileinterface_destroy(struct fileinterface **fi);
 
 /*
+ * Returns a path for the given filename in the given directory.
+ */
+char * fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename);
+
+/*
  * Opens a file with the given path.
  */
 void file_open(struct fileinterface *fi, char *path, struct file **file);
@@ -50,5 +55,10 @@ void file_setsize(struct file *f, size_t newsize);
  * Returns a filemap struct with a chunk of the file mapped to memory.
  */
 LDI_ERROR file_getmap(struct file *f, size_t offset, size_t length, struct filemap **map, struct logger logger);
+
+/*
+ * Returns the directory of the file.
+ */
+char * file_getdirectory(struct file *f);
 
 #endif /* FILEINTERFACE_H */

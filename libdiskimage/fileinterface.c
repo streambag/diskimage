@@ -3,10 +3,13 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <libgen.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <strings.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "fileinterface.h"
 #include "filemap.h"
@@ -22,6 +25,7 @@ struct fileinterface { };
  */
 struct file {
     int fd;
+    char *path;
 };
 
 /*
@@ -43,6 +47,14 @@ fileinterface_destroy(struct fileinterface **fi)
     *fi = NULL;
 }
 
+char *
+fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename)
+{
+    char *res;
+    asprintf(&res, "%s/%s", directory, filename);
+    return res;
+}
+
 /*
  * Opens a file with the given path.
  */
@@ -51,6 +63,7 @@ file_open(struct fileinterface *fi, char *path, struct file **file)
 {
     *file = malloc(sizeof(struct file));
     (*file)->fd = open(path, O_RDWR | O_DIRECT | O_FSYNC);
+    (*file)->path = strdup(path);
 }
 
 /*
@@ -60,6 +73,7 @@ void
 file_close(struct file **f)
 {
     close((*f)->fd);
+    free((*f)->path);
     free(*f);
     *f = NULL;
 }
@@ -125,4 +139,13 @@ LDI_ERROR
 file_getmap(struct file *f, size_t offset, size_t length, struct filemap **map, struct logger logger)
 {
     return filemap_create(f->fd, offset, length, map, logger);
+}
+
+char *
+file_getdirectory(struct file *f)
+{
+    char *res;
+    /* THREAD SAFETY */
+    res = dirname(f->path);
+    return strdup(res);
 }

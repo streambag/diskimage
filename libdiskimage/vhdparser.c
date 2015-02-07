@@ -141,10 +141,14 @@ read_format_specific_data(struct vhd_parser *parser) {
  * Creates the parser state.
  */
 LDI_ERROR
-vhd_parser_new(struct file *file, void **parser, struct logger logger)
+vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logger logger)
 {
 	LDI_ERROR result;
 	struct vhd_parser *vhd_parser; 
+    struct file *file;
+
+	/* Open the backing file. */
+	file_open(fi, path, &file);
     
 	errno = 0;
 	*parser = malloc((unsigned int)sizeof(struct vhd_parser));
@@ -189,6 +193,10 @@ vhd_parser_destroy(void **parser)
 {
 	struct vhd_parser *vhd_parser;
 	vhd_parser = (struct vhd_parser*)(*parser);
+
+	/* Close the file. */
+	file_close(&(vhd_parser)->file);
+
 	if (vhd_parser->footer) {
 		vhd_footer_destroy(&vhd_parser->footer);
 	}
