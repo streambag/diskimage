@@ -51,10 +51,11 @@ get_key_value(char *input, size_t length, struct key_value *result)
 
     cur = input;
 
-    while (cur != end && *cur != '\n') {
+    while (cur != end && (state == BEFORE_KEY || *cur != '\n')) {
         switch (*cur) {
             case ' ':
             case '\t':
+            case '\n':
                 /* Whitespace */
                 break;
             case '=':
