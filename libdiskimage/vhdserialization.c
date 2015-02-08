@@ -20,7 +20,8 @@ read_chars(void *source, void *dest, uint32_t count)
 /*
  * Write a string to the destination.
  */
-void write_chars(void *source, void *dest, uint32_t count)
+void 
+write_chars(void *source, void *dest, uint32_t count)
 {
 	memcpy(dest, source, count);
 }
@@ -29,14 +30,16 @@ void write_chars(void *source, void *dest, uint32_t count)
  * Read a uint32 from the source.
  */
 uint32_t
-read_uint32(void *source) {
+read_uint32(void *source)
+{
 	return (be32dec(source));
 }
 
 /*
  * Write a uint32 to the destination.
  */
-void write_uint32(uint32_t value, void *dest)
+void 
+write_uint32(uint32_t value, void *dest)
 {
 	be32enc(dest, value);
 }
@@ -48,15 +51,17 @@ int32_t
 read_int32(void *source)
 {
 	uint32_t us = be32dec(source);
-	return *((int32_t *) &us);
+
+	return *((int32_t *)&us);
 }
 
 /*
  * Write an int32 to the destination.
  */
-void write_int32(int32_t value, void *dest)
+void 
+write_int32(int32_t value, void *dest)
 {
-    be32enc(dest, *(uint32_t *)(&value));
+	be32enc(dest, *(uint32_t *)(&value));
 }
 
 /*
@@ -71,16 +76,17 @@ read_uint64(void *source)
 /*
  * Write a uint64 to the destination.
  */
-void write_uint64(uint64_t value, void *dest)
+void 
+write_uint64(uint64_t value, void *dest)
 {
-    be64enc(dest, value);
+	be64enc(dest, value);
 }
 
 /*
  * Read a uuid from the source.
  */
 void
-read_uuid(void *source, uuid_t * dest)
+read_uuid(void *source, uuid_t *dest)
 {
 	uuid_dec_be(source, dest);
 }
@@ -88,9 +94,10 @@ read_uuid(void *source, uuid_t * dest)
 /*
  * Write a uuid to the destination.
  */
-void write_uuid(uuid_t *source, void *dest)
+void 
+write_uuid(uuid_t *source, void *dest)
 {
-    uuid_enc_be(dest, source);
+	uuid_enc_be(dest, source);
 }
 
 /*
@@ -99,15 +106,16 @@ void write_uuid(uuid_t *source, void *dest)
 bool
 read_bool(void *source)
 {
-	return *(uint8_t *) source == 1;
+	return *(uint8_t *)source == 1;
 }
 
 /*
  * Write a bool to the destination.
  */
-void write_bool(bool value, void *dest)
+void 
+write_bool(bool value, void *dest)
 {
-    *(uint8_t *)dest = value ? 1 : 0;
+	*(uint8_t *)dest = value ? 1 : 0;
 }
 
 /*
@@ -123,10 +131,11 @@ read_version(void *source, struct vhd_version *dest)
 /*
  * Write the file version to the destination.
  */
-void write_version(struct vhd_version *source, void *dest)
+void 
+write_version(struct vhd_version *source, void *dest)
 {
-    be16enc(dest, source->major);
-    be16enc(dest + 2, source->minor);
+	be16enc(dest, source->major);
+	be16enc(dest + 2, source->minor);
 }
 
 /*
@@ -135,20 +144,20 @@ void write_version(struct vhd_version *source, void *dest)
 void
 read_disk_geometry(void *source, struct vhd_disk_geometry *dest)
 {
-	uint8_t *bytes = (uint8_t *) source;
+	uint8_t *bytes = (uint8_t *)source;
 
 	dest->cylinder = be16dec(bytes);
-	dest->heads = *(uint8_t *) (bytes + 2);
-	dest->sectors_per_track = *(uint8_t *) (bytes + 3);
+	dest->heads = *(uint8_t *)(bytes + 2);
+	dest->sectors_per_track = *(uint8_t *)(bytes + 3);
 }
 
 /*
  * Write the disk geometry to the destination.
  */
-void write_disk_geometry(struct vhd_disk_geometry *source, void *dest)
+void 
+write_disk_geometry(struct vhd_disk_geometry *source, void *dest)
 {
-    be16enc(dest, source->cylinder);
-    *((uint8_t *)dest + 2) = source->heads;
-    *((uint8_t *)dest + 3) = source->sectors_per_track;
+	be16enc(dest, source->cylinder);
+	*((uint8_t *)dest + 2) = source->heads;
+	*((uint8_t *)dest + 3) = source->sectors_per_track;
 }
-

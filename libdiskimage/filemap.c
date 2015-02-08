@@ -14,8 +14,8 @@ static int pagesize = -1;
 
 /* Details about the mapped memory region. */
 struct filemap_internal {
-	size_t length;
-	size_t padding_start;
+	size_t	length;
+	size_t	padding_start;
 };
 
 /*
@@ -27,7 +27,7 @@ init_pagesize()
 	pagesize = getpagesize();
 }
 
-/* 
+/*
  * Helper method that page aligns the specified range.
  */
 static void
@@ -42,8 +42,8 @@ align(size_t *offset, size_t *length)
 
 	/* Calculate the padding needed to page align the range. */
 	end = *offset + *length;
-	padding_start = *offset%pagesize;
-	padding_end = (end + pagesize - 1)%pagesize;
+	padding_start = *offset % pagesize;
+	padding_end = (end + pagesize - 1) % pagesize;
 
 	/* Update the offset and length to the page aligned range. */
 	*offset = *offset - padding_start;
@@ -53,7 +53,7 @@ align(size_t *offset, size_t *length)
 /*
  * Memory maps the requested file range into memory. The returned filemap
  * object must be destroyed using filemap_destroy when it is no longer needed.
- * Handles page aligning the range. While not strictly needed on FreeBSD, it 
+ * Handles page aligning the range. While not strictly needed on FreeBSD, it
  * is needed for POSIX compliance and when running in valgrind.
  */
 LDI_ERROR
@@ -65,7 +65,7 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
 	/* Allocate memory for the filemap. */
 	*map = malloc(sizeof(struct filemap));
 
-    (*map)->internal = malloc(sizeof(struct filemap_internal));
+	(*map)->internal = malloc(sizeof(struct filemap_internal));
 
 	/* Make the range page aligned. */
 	align(&offset, &length);
@@ -81,7 +81,6 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
 		*map = NULL;
 		return LDI_ERR_UNKNOWN;
 	}
-
 	/* Save all the information needed in the filemap object. */
 	(*map)->internal->padding_start = original_offset - offset;
 	(*map)->pointer = ptr + (*map)->internal->padding_start;
@@ -96,9 +95,10 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
  * this function.
  */
 void
-filemap_destroy(struct filemap **map) {
+filemap_destroy(struct filemap **map)
+{
 	munmap((*map)->pointer - (*map)->internal->padding_start, (*map)->internal->length);
-    free((*map)->internal);
+	free((*map)->internal);
 	free(*map);
 	*map = NULL;
 }

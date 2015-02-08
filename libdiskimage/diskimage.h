@@ -15,13 +15,13 @@ typedef enum {
 	LDI_ERR_FILENOTSUP,
 	/* A read or write outside the valid range */
 	LDI_ERR_OUTOFRANGE,
-    /* Failure when reading or writing a file */
-    LDI_ERR_IO,
+	/* Failure when reading or writing a file */
+	LDI_ERR_IO,
 	/* An unknown error occured */
 	LDI_ERR_UNKNOWN,
-    /* Error when parsing a file. Possibly corrupt. */
-    LDI_ERR_PARSEERROR,
-} LDI_ERROR;
+	/* Error when parsing a file. Possibly corrupt. */
+	LDI_ERR_PARSEERROR,
+}	LDI_ERROR;
 
 /* Describes the type (not the format) of a disk */
 enum disk_type {
@@ -43,17 +43,17 @@ struct diskimage;
  */
 struct logger {
 	/* The logger function. Set to NULL to disable logging completely. */
-	void	(*write)(int level, void *privarg, char *fmt, ...);
+	void    (*write) (int level, void *privarg, char *fmt,...);
 	/*
 	 * A user defined argument that is always sent to the logger
 	 * function. Can be used to track the configured log level.
 	 */
-	void	*privarg;
+	void   *privarg;
 };
 
 /* Information about a diskimage */
 struct diskinfo {
-	size_t disksize;
+	size_t	disksize;
 };
 
 /*
@@ -66,7 +66,7 @@ LDI_ERROR diskimage_open(char *path, char *format, struct logger logger, struct 
 /*
  * Deallocates and sets the diskimage pointer ot zero.
  */
-void diskimage_destroy(struct diskimage **di);
+void	diskimage_destroy(struct diskimage **di);
 
 /*
  * Resturns a structure containing disk information.
@@ -83,4 +83,4 @@ LDI_ERROR diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t o
  */
 LDI_ERROR diskimage_write(struct diskimage *di, char *buf, size_t nbytes, off_t offset);
 
-#endif /* DISKIMAGE_H */
+#endif					/* DISKIMAGE_H */

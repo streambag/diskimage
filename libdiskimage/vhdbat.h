@@ -25,6 +25,6 @@ uint32_t vhd_bat_get_block_offset(struct vhd_bat *bat, int block);
 /*
  * Add a new block to the block allocation table.
  */
-void vhd_bat_add_block(struct vhd_bat *bat, int block, off_t offset);
+void	vhd_bat_add_block(struct vhd_bat *bat, int block, off_t offset);
 
-#endif /* _VHDBAT_H_ */
+#endif					/* _VHDBAT_H_ */

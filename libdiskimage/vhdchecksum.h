@@ -62,4 +62,4 @@ uint32_t checksum_uuid(uuid_t *source);
  */
 uint32_t checksum_bool(bool source);
 
-#endif /* _VHDCHECKSUM_H_ */
+#endif					/* _VHDCHECKSUM_H_ */

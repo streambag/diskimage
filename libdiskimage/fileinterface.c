@@ -17,15 +17,16 @@
 /*
  * A struct representing interface that is used to open files.
  */
-struct fileinterface { };
+struct fileinterface {
+};
 
 /*
  * A struct representing a file. This is used for all file operations
  * in the library.
  */
 struct file {
-    int fd;
-    char *path;
+	int	fd;
+	char   *path;
 };
 
 /*
@@ -34,7 +35,7 @@ struct file {
 void
 fileinterface_create(struct fileinterface **fi)
 {
-    *fi = malloc(sizeof(struct fileinterface));
+	*fi = malloc(sizeof(struct fileinterface));
 }
 
 /*
@@ -43,16 +44,17 @@ fileinterface_create(struct fileinterface **fi)
 void
 fileinterface_destroy(struct fileinterface **fi)
 {
-    free(*fi);
-    *fi = NULL;
+	free(*fi);
+	*fi = NULL;
 }
 
-char *
+char   *
 fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename)
 {
-    char *res;
-    asprintf(&res, "%s/%s", directory, filename);
-    return res;
+	char *res;
+
+	asprintf(&res, "%s/%s", directory, filename);
+	return res;
 }
 
 /*
@@ -61,9 +63,9 @@ fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename)
 void
 file_open(struct fileinterface *fi, char *path, struct file **file)
 {
-    *file = malloc(sizeof(struct file));
-    (*file)->fd = open(path, O_RDWR | O_DIRECT | O_FSYNC);
-    (*file)->path = strdup(path);
+	*file = malloc(sizeof(struct file));
+	(*file)->fd = open(path, O_RDWR | O_DIRECT | O_FSYNC);
+	(*file)->path = strdup(path);
 }
 
 /*
@@ -72,10 +74,10 @@ file_open(struct fileinterface *fi, char *path, struct file **file)
 void
 file_close(struct file **f)
 {
-    close((*f)->fd);
-    free((*f)->path);
-    free(*f);
-    *f = NULL;
+	close((*f)->fd);
+	free((*f)->path);
+	free(*f);
+	*f = NULL;
 }
 
 /*
@@ -84,9 +86,10 @@ file_close(struct file **f)
 size_t
 file_getsize(struct file *f)
 {
-    struct stat sb;
-    fstat(f->fd, &sb);
-    return sb.st_size;
+	struct stat sb;
+
+	fstat(f->fd, &sb);
+	return sb.st_size;
 }
 
 /*
@@ -95,41 +98,41 @@ file_getsize(struct file *f)
 LDI_ERROR
 write_zeros(int fd, off_t pos, size_t nbytes)
 {
-    char *buffer;
-    int bytes_written;
+	char *buffer;
+	int bytes_written;
 
-    buffer = malloc(512);
-    bzero(buffer, 512);
+	buffer = malloc(512);
+	bzero(buffer, 512);
 
-    while (nbytes > 0) {
-        bytes_written = pwrite(fd, buffer, MIN(512, nbytes), pos);
+	while (nbytes > 0) {
+		bytes_written = pwrite(fd, buffer, MIN(512, nbytes), pos);
 
-        if (bytes_written < 0) {
-            /* Something went wrong. */
-            return LDI_ERR_IO;
-        }
-    
-        /* Update pos, nbytes */
-        pos += bytes_written;
-        nbytes -= bytes_written;
-    }
+		if (bytes_written < 0) {
+			/* Something went wrong. */
+			return LDI_ERR_IO;
+		}
+		/* Update pos, nbytes */
+		pos += bytes_written;
+		nbytes -= bytes_written;
+	}
 
-    return LDI_ERR_NOERROR;
+	return LDI_ERR_NOERROR;
 }
 
 /*
  * Changes the size of the given file.
  */
-void 
+void
 file_setsize(struct file *f, size_t newsize)
 {
-    size_t oldsize = file_getsize(f);
-    if (newsize > oldsize) {
-        /* Fill the new space with zeros. */
-        write_zeros(f->fd, oldsize, newsize-oldsize);
-    } else {
-        ftruncate(f->fd, newsize);
-    }
+	size_t oldsize = file_getsize(f);
+
+	if (newsize > oldsize) {
+		/* Fill the new space with zeros. */
+		write_zeros(f->fd, oldsize, newsize - oldsize);
+	} else {
+		ftruncate(f->fd, newsize);
+	}
 }
 
 /*
@@ -138,14 +141,15 @@ file_setsize(struct file *f, size_t newsize)
 LDI_ERROR
 file_getmap(struct file *f, size_t offset, size_t length, struct filemap **map, struct logger logger)
 {
-    return filemap_create(f->fd, offset, length, map, logger);
+	return filemap_create(f->fd, offset, length, map, logger);
 }
 
-char *
+char   *
 file_getdirectory(struct file *f)
 {
-    char *res;
-    /* THREAD SAFETY */
-    res = dirname(f->path);
-    return strdup(res);
+	char *res;
+
+	/* THREAD SAFETY */
+	res = dirname(f->path);
+	return strdup(res);
 }

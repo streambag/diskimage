@@ -26,7 +26,7 @@ vhd_footer_write(struct vhd_footer *footer, void *dest);
  * Deallocates the memory for the footer and sets the pointer to NULL.
  */
 void
-vhd_footer_destroy(struct vhd_footer **footer);
+	vhd_footer_destroy(struct vhd_footer **footer);
 
 /*
  * Returns true if the checksum for the footer is valid.
@@ -38,18 +38,18 @@ vhd_footer_isvalid(struct vhd_footer *footer);
  * Returns the disk type that this footer represents.
  */
 enum disk_type
-vhd_footer_disk_type(struct vhd_footer *footer);
+	vhd_footer_disk_type(struct vhd_footer *footer);
 
-/* 
+/*
  * Returns the current size of the disk.
  */
 long
-vhd_footer_disksize(struct vhd_footer *footer);
+	vhd_footer_disksize(struct vhd_footer *footer);
 
 /*
  * Returns the offset to the beginning of the data.
  */
 off_t
-vhd_footer_offset(struct vhd_footer *footer);
+	vhd_footer_offset(struct vhd_footer *footer);
 
-#endif /* VHDFOOTER_H */
+#endif					/* VHDFOOTER_H */

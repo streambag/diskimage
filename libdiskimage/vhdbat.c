@@ -9,13 +9,13 @@
 
 
 struct vhd_bat {
-    uint32_t numblocks;
-    uint32_t *block_offsets;
+	uint32_t numblocks;
+	uint32_t *block_offsets;
 
-    struct logger logger;
+	struct logger logger;
 };
 
-void log_bat(struct vhd_bat *bat);
+void	log_bat(struct vhd_bat *bat);
 
 /*
  * Reads the block allocation table from disk.
@@ -23,12 +23,13 @@ void log_bat(struct vhd_bat *bat);
 static void
 read_bat(void *source, struct vhd_bat *bat)
 {
-    int i;
-    bat->block_offsets = malloc(bat->numblocks * sizeof(uint32_t));
+	int i;
 
-    for (i = 0; i < bat->numblocks; i++) {
-        bat->block_offsets[i] = read_uint32(source + i*4);
-    }
+	bat->block_offsets = malloc(bat->numblocks * sizeof(uint32_t));
+
+	for (i = 0; i < bat->numblocks; i++) {
+		bat->block_offsets[i] = read_uint32(source + i * 4);
+	}
 }
 
 
@@ -38,20 +39,19 @@ read_bat(void *source, struct vhd_bat *bat)
 LDI_ERROR
 vhd_bat_new(void *source, struct vhd_bat **bat, int numblocks, struct logger logger)
 {
-    errno = 0;
-    *bat = malloc((unsigned int)sizeof(struct vhd_bat));
-    if (bat == NULL) {
-        return LDI_ERR_NOMEM;
-    }
+	errno = 0;
+	*bat = malloc((unsigned int)sizeof(struct vhd_bat));
+	if (bat == NULL) {
+		return LDI_ERR_NOMEM;
+	}
+	(*bat)->numblocks = numblocks;
+	(*bat)->logger = logger;
 
-    (*bat)->numblocks = numblocks;
-    (*bat)->logger = logger;
+	read_bat(source, *bat);
 
-    read_bat(source, *bat);
-    
-    log_bat(*bat);
+	log_bat(*bat);
 
-    return LDI_ERR_NOERROR;
+	return LDI_ERR_NOERROR;
 }
 
 /*
@@ -60,13 +60,13 @@ vhd_bat_new(void *source, struct vhd_bat **bat, int numblocks, struct logger log
 LDI_ERROR
 vhd_bat_write(struct vhd_bat *bat, void *destination)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < bat->numblocks; i++) {
-        write_uint32(bat->block_offsets[i], destination + i*4);
-    }
+	for (i = 0; i < bat->numblocks; i++) {
+		write_uint32(bat->block_offsets[i], destination + i * 4);
+	}
 
-    return LDI_ERR_NOERROR;
+	return LDI_ERR_NOERROR;
 }
 
 /*
@@ -75,11 +75,12 @@ vhd_bat_write(struct vhd_bat *bat, void *destination)
 void
 log_bat(struct vhd_bat *bat)
 {
-    int i;
-    LOG_VERBOSE(bat->logger, "Block allocation table:\n");
-    for (i = 0; i < bat->numblocks; i++) {
-        LOG_VERBOSE(bat->logger, "Block %d: %d\n", i, bat->block_offsets[i]);
-    }
+	int i;
+
+	LOG_VERBOSE(bat->logger, "Block allocation table:\n");
+	for (i = 0; i < bat->numblocks; i++) {
+		LOG_VERBOSE(bat->logger, "Block %d: %d\n", i, bat->block_offsets[i]);
+	}
 }
 
 
@@ -89,7 +90,7 @@ log_bat(struct vhd_bat *bat)
 uint32_t
 vhd_bat_get_block_offset(struct vhd_bat *bat, int block)
 {
-    return bat->block_offsets[block];
+	return bat->block_offsets[block];
 }
 
 /*
@@ -98,5 +99,5 @@ vhd_bat_get_block_offset(struct vhd_bat *bat, int block)
 void
 vhd_bat_add_block(struct vhd_bat *bat, int block, off_t offset)
 {
-    bat->block_offsets[block] = offset;
+	bat->block_offsets[block] = offset;
 }

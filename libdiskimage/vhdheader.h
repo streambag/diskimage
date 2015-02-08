@@ -12,13 +12,13 @@ LDI_ERROR vhd_header_new(void *source, struct vhd_header **header, struct logger
 /*
  * Returns true if the checksum for the header is valid.
  */
-bool vhd_header_isvalid(struct vhd_header *header);
+bool	vhd_header_isvalid(struct vhd_header *header);
 
 /*
  * Writes all the values in the header to the log, for debug purposes.
  */
-void log_header(struct vhd_header *header);
-    
+void	log_header(struct vhd_header *header);
+
 /*
  * Returns the absolute file offset to the block allocation table.
  */
@@ -34,4 +34,4 @@ uint32_t vhd_header_max_table_entries(struct vhd_header *header);
  */
 uint32_t vhd_header_block_size(struct vhd_header *header);
 
-#endif /* _VHDHEADER_H_ */
+#endif					/* _VHDHEADER_H_ */

@@ -27,7 +27,7 @@
 #define UNIQUE_ID_OFFSET 68
 #define SAVED_STATE_OFFSET 84
 
-void log_footer(struct vhd_footer *footer);
+void	log_footer(struct vhd_footer *footer);
 
 /* Features defined in the footer. */
 enum vhd_features {
@@ -105,7 +105,7 @@ calculate_checksum(struct vhd_footer *footer)
 static void
 read_footer(void *source, struct vhd_footer *footer)
 {
-	uint8_t *bytes = (uint8_t *) source;
+	uint8_t *bytes = (uint8_t *)source;
 
 	read_chars(bytes + COOKIE_OFFSET, &footer->cookie, 8);
 	footer->features = read_uint32(bytes + FEATURES_OFFSET);
@@ -130,12 +130,12 @@ read_footer(void *source, struct vhd_footer *footer)
 }
 
 /*
- * Get the string representatino of a uuid. Must be freed. 
+ * Get the string representatino of a uuid. Must be freed.
  */
 static char *
 get_uuid_string(uuid_t uuid)
 {
-	char   *uuid_str;
+	char *uuid_str;
 
 	uint32_t status;
 
@@ -168,7 +168,7 @@ vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
 LDI_ERROR
 vhd_footer_write(struct vhd_footer *footer, void *dest)
 {
-	uint8_t *bytes = (uint8_t *) dest;
+	uint8_t *bytes = (uint8_t *)dest;
 
 	write_chars(footer->cookie, bytes + COOKIE_OFFSET, 8);
 	write_uint32(footer->features, bytes + FEATURES_OFFSET);
@@ -186,8 +186,9 @@ vhd_footer_write(struct vhd_footer *footer, void *dest)
 	write_uuid(&footer->unique_id, bytes + UNIQUE_ID_OFFSET);
 	write_bool(footer->saved_state, bytes + SAVED_STATE_OFFSET);
 
-    return LDI_ERR_NOERROR;
+	return LDI_ERR_NOERROR;
 }
+
 /*
  * Prints all the values in the footer, for debug purposes.
  */
@@ -195,6 +196,7 @@ void
 log_footer(struct vhd_footer *footer)
 {
 	char *uuid_str;
+
 	LOG_VERBOSE(footer->logger, "Cookie:\t\t\t%s\n", footer->cookie);
 	LOG_VERBOSE(footer->logger, "Features:\t\t%d\n", footer->features);
 	LOG_VERBOSE(footer->logger, "File format version:\t%d.%d\n",
@@ -217,14 +219,14 @@ log_footer(struct vhd_footer *footer)
 	if (vhd_footer_isvalid(footer)) {
 		LOG_VERBOSE(footer->logger, "valid)\n");
 	} else {
-		LOG_VERBOSE(footer->logger, "invalid real cheksum: %u)\n", 
+		LOG_VERBOSE(footer->logger, "invalid real cheksum: %u)\n",
 		    footer->calculated_checksum);
 	}
 
 	uuid_str = get_uuid_string(footer->unique_id);
 	LOG_VERBOSE(footer->logger, "Unique id:\t\t%s", uuid_str);
 	free(uuid_str);
-	
+
 	LOG_VERBOSE(footer->logger, "\n");
 	LOG_VERBOSE(footer->logger, "Saved state:\t\t%d\n", footer->saved_state);
 }
@@ -255,18 +257,18 @@ enum disk_type
 vhd_footer_disk_type(struct vhd_footer *footer)
 {
 	switch (footer->disk_type) {
-		case VHD_TYPE_FIXED:
-			return DISK_TYPE_FIXED;
-		case VHD_TYPE_DYNAMIC:
-			return DISK_TYPE_DYNAMIC;
-		case VHD_TYPE_DIFFERENCING:
-			return DISK_TYPE_DIFFERENCING;
-		default:
-			return DISK_TYPE_UNKNOWN;
+	case VHD_TYPE_FIXED:
+		return DISK_TYPE_FIXED;
+	case VHD_TYPE_DYNAMIC:
+		return DISK_TYPE_DYNAMIC;
+	case VHD_TYPE_DIFFERENCING:
+		return DISK_TYPE_DIFFERENCING;
+	default:
+		return DISK_TYPE_UNKNOWN;
 	}
 }
 
-/* 
+/*
  * Returns the current size of the disk.
  */
 long
