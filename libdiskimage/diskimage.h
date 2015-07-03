@@ -3,7 +3,7 @@
 
 #include <sys/types.h>
 
-/* Defines all errors that can be returned by functions in libdiskimage */
+/* Defines all error codes that can be returned by functions in libdiskimage */
 typedef enum {
 	/* No error */
 	LDI_ERR_NOERROR = 0,
@@ -21,6 +21,14 @@ typedef enum {
 	LDI_ERR_UNKNOWN,
 	/* Error when parsing a file. Possibly corrupt. */
 	LDI_ERR_PARSEERROR,
+}	LDI_ERROR_CODE;
+
+/* Defines the error struct returned by functions in libdiskimage */
+typedef struct {
+	/* The primary error code */
+	LDI_ERROR_CODE code;
+	/* Some errors provide additional details */
+	int suberror;
 }	LDI_ERROR;
 
 /* Describes the type (not the format) of a disk */

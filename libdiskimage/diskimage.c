@@ -6,6 +6,7 @@
 
 #include "diskimage.h"
 #include "fileinterface.h"
+#include "internal.h"
 #include "log.h"
 #include "parser.h"
 
@@ -47,7 +48,7 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 
 	/* Check that we actually found a parser matching the name */
 	if (parser == NULL)
-		return LDI_ERR_FORMATUNKNOWN;
+		return ERROR(LDI_ERR_FORMATUNKNOWN);
 
 	fileinterface_create(&fileinterface);
 
@@ -63,7 +64,7 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 
 	/* Let the parser create its own format specific parser state. */
 	res = (*di)->parser->construct(fileinterface, path, &(*di)->parser_state, logger);
-	if (res != LDI_ERR_NOERROR) {
+	if (res.code != LDI_ERR_NOERROR) {
 		free(*di);
 		*di = NULL;
 		return res;
@@ -71,7 +72,7 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 	/* Get the disk info from the parser so that we know the disk size */
 	(*di)->diskinfo = (*di)->parser->diskinfo((*di)->parser_state);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -108,7 +109,7 @@ diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 
 	/* Check that the whole range is within the range of the disk. */
 	if (offset < 0 || offset + nbytes > di->diskinfo.disksize)
-		return LDI_ERR_OUTOFRANGE;
+		return ERROR(LDI_ERR_OUTOFRANGE);
 
 	LOG_VERBOSE(di->logger, "Reading %d bytes at %d\n", nbytes, offset);
 
@@ -128,7 +129,7 @@ diskimage_write(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 
 	/* Check that the whole range is within the range of the disk. */
 	if (offset < 0 || offset + nbytes > di->diskinfo.disksize)
-		return LDI_ERR_OUTOFRANGE;
+		return ERROR(LDI_ERR_OUTOFRANGE);
 
 	LOG_VERBOSE(di->logger, "Writing %d bytes at %d\n", nbytes, offset);
 

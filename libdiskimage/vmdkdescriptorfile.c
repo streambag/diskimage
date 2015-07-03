@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "internal.h"
 #include "vmdkdescriptorfile.h"
 #include "vmdkextentdescriptor.h"
 
@@ -304,11 +305,11 @@ vmdkdescriptorfile_new(void *source, struct vmdkdescriptorfile **descriptorfile,
 			 * pair.
 			 */
 			vmdkdescriptorfile_destroy(descriptorfile);
-			return LDI_ERR_PARSEERROR;
+			return ERROR(LDI_ERR_PARSEERROR);
 		}
 	}
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*

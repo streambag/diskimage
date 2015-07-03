@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "diskimage.h"
+#include "internal.h"
 #include "log.h"
 #include "vhdserialization.h"
 
@@ -42,7 +43,7 @@ vhd_bat_new(void *source, struct vhd_bat **bat, int numblocks, struct logger log
 	errno = 0;
 	*bat = malloc((unsigned int)sizeof(struct vhd_bat));
 	if (bat == NULL) {
-		return LDI_ERR_NOMEM;
+		return ERROR(LDI_ERR_NOMEM);
 	}
 	(*bat)->numblocks = numblocks;
 	(*bat)->logger = logger;
@@ -51,7 +52,7 @@ vhd_bat_new(void *source, struct vhd_bat **bat, int numblocks, struct logger log
 
 	log_bat(*bat);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -66,7 +67,7 @@ vhd_bat_write(struct vhd_bat *bat, void *destination)
 		write_uint32(bat->block_offsets[i], destination + i * 4);
 	}
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*

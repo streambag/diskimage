@@ -5,6 +5,7 @@
 #include <errno.h>
 
 #include "diskimage.h"
+#include "internal.h"
 #include "log.h"
 #include "vhdchecksum.h"
 #include "vhdserialization.h"
@@ -143,14 +144,14 @@ vhd_header_new(void *source, struct vhd_header **header, struct logger logger)
 	errno = 0;
 	*header = malloc((unsigned int)sizeof(struct vhd_header));
 	if (header == NULL) {
-		return LDI_ERR_NOMEM;
+		return ERROR(LDI_ERR_NOMEM);
 	}
 	(*header)->logger = logger;
 	read_header(source, *header);
 
 	log_header(*header);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*

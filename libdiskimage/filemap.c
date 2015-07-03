@@ -4,8 +4,9 @@
 #include <sys/mman.h>
 #include <errno.h>
 
-#include "filemap.h"
 #include "diskimage.h"
+#include "filemap.h"
+#include "internal.h"
 #include "log.h"
 
 
@@ -79,14 +80,14 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
 		/* Clean up */
 		free(*map);
 		*map = NULL;
-		return LDI_ERR_UNKNOWN;
+		return ERROR(LDI_ERR_UNKNOWN);
 	}
 	/* Save all the information needed in the filemap object. */
 	(*map)->internal->padding_start = original_offset - offset;
 	(*map)->pointer = ptr + (*map)->internal->padding_start;
 	(*map)->internal->length = length;
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*

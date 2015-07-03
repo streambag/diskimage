@@ -13,6 +13,7 @@
 
 #include "fileinterface.h"
 #include "filemap.h"
+#include "internal.h"
 
 /*
  * A struct representing interface that is used to open files.
@@ -109,14 +110,14 @@ write_zeros(int fd, off_t pos, size_t nbytes)
 
 		if (bytes_written < 0) {
 			/* Something went wrong. */
-			return LDI_ERR_IO;
+			return ERROR(LDI_ERR_IO);
 		}
 		/* Update pos, nbytes */
 		pos += bytes_written;
 		nbytes -= bytes_written;
 	}
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*

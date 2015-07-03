@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "fileinterface.h"
+#include "internal.h"
 
 /* The internal parser state. */
 struct vhd_parser {
@@ -80,7 +81,7 @@ read_bat_data(struct vhd_parser *parser)
 	result = vhd_bat_new(map->pointer, &parser->bat, bat_size, parser->logger);
 	filemap_destroy(&map);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -93,7 +94,7 @@ read_dynamic_data(struct vhd_parser *parser)
 
 	result = read_dynamic_header(parser);
 
-	if (result != LDI_ERR_NOERROR) {
+	if (result.code != LDI_ERR_NOERROR) {
 		/*
 		 * Something went wrong when reading the dynamic header,
 		 * don't attempt to read the BAT, since it depends on the
@@ -130,12 +131,12 @@ read_format_specific_data(struct vhd_parser *parser)
 	switch (parser->disk_type) {
 	case DISK_TYPE_FIXED:
 		/* We're done. Just return. */
-		return LDI_ERR_NOERROR;
+		return NO_ERROR;
 	case DISK_TYPE_DYNAMIC:
 		return read_dynamic_data(parser);
 	default:
 		/* Only fixed and dynamic VHDs are supported. */
-		return LDI_ERR_FILENOTSUP;
+		return ERROR(LDI_ERR_FILENOTSUP);
 	}
 }
 
@@ -155,7 +156,7 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	errno = 0;
 	*parser = malloc((unsigned int)sizeof(struct vhd_parser));
 	if (parser == NULL) {
-		return LDI_ERR_NOMEM;
+		return ERROR(LDI_ERR_NOMEM);
 	}
 	vhd_parser = (struct vhd_parser *)(*parser);
 	vhd_parser->file = file;
@@ -170,7 +171,7 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	/* Read the footer */
 	result = read_footer(vhd_parser);
 
-	if (result != LDI_ERR_NOERROR) {
+	if (result.code != LDI_ERR_NOERROR) {
 		/* We couldn't read the footer. Clean up and return. */
 		vhd_parser_destroy(parser);
 		return result;
@@ -178,7 +179,7 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	vhd_parser->disk_type = vhd_footer_disk_type(vhd_parser->footer);
 
 	result = read_format_specific_data(vhd_parser);
-	if (result != LDI_ERR_NOERROR) {
+	if (result.code != LDI_ERR_NOERROR) {
 		/*
 		 * Something went wrong when reading the format specific
 		 * data.
@@ -234,7 +235,7 @@ read_from_raw_offset(struct file *file, char *buf, size_t nbytes, off_t offset, 
 	file_getmap(file, offset, nbytes, &map, logger);
 	memcpy(buf, map->pointer, nbytes);
 	filemap_destroy(&map);
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -324,7 +325,7 @@ read_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 
 			/* Do the actual read. */
 			result = read_from_raw_offset(parser->file, buf, bytes_to_read, file_offset, parser->logger);
-			if (result != LDI_ERR_NOERROR) {
+			if (result.code != LDI_ERR_NOERROR) {
 				return result;
 			}
 		}
@@ -335,7 +336,7 @@ read_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 		offset += bytes_to_read;
 	}
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -353,7 +354,7 @@ vhd_parser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 		return read_dynamic(vhd_parser, buf, nbytes, offset);
 	default:
 		/* Should not happen. */
-		return LDI_ERR_FILENOTSUP;
+		return ERROR(LDI_ERR_FILENOTSUP);
 	}
 }
 
@@ -369,7 +370,7 @@ write_fixed(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 	memcpy(map->pointer, buf, nbytes);
 	filemap_destroy(&map);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 
@@ -404,7 +405,7 @@ extend_file(struct vhd_parser *parser)
 	/* Update parser->filesize now that the size is updated. */
 	parser->filesize = file_getsize(parser->file);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -516,7 +517,7 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 		offset += bytes_to_write;
 	}
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 
 }
 
@@ -535,7 +536,7 @@ vhd_parser_write(void *parser, char *buf, size_t nbytes, off_t offset)
 		return write_dynamic(vhd_parser, buf, nbytes, offset);
 	default:
 		/* Should not happen. */
-		return LDI_ERR_FILENOTSUP;
+		return ERROR(LDI_ERR_FILENOTSUP);
 	}
 }
 

@@ -3,6 +3,7 @@
 
 #include "diskimage.h"
 #include "fileinterface.h"
+#include "internal.h"
 #include "parser.h"
 #include "vmdkdescriptorfile.h"
 
@@ -58,7 +59,7 @@ vmdkparser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	free(dir);
 	free(datapath);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -103,7 +104,7 @@ vmdkparser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 	memcpy(buf, map->pointer, nbytes);
 	filemap_destroy(&map);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -113,7 +114,7 @@ LDI_ERROR
 vmdkparser_write(void *parser, char *buf, size_t nbytes, off_t offset)
 {
 	/* Not yet supported, ignore the call. */
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*

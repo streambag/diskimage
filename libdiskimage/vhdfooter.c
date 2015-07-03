@@ -5,10 +5,11 @@
 #include <uuid.h>
 #include <errno.h>
 
+#include "internal.h"
+#include "log.h"
 #include "vhdfooter.h"
 #include "vhdchecksum.h"
 #include "vhdserialization.h"
-#include "log.h"
 
 /* Defines the offsets used in VHD file footer. */
 #define COOKIE_OFFSET 0
@@ -152,14 +153,14 @@ vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
 	errno = 0;
 	*footer = malloc((unsigned int)sizeof(struct vhd_footer));
 	if (footer == NULL) {
-		return LDI_ERR_NOMEM;
+		return ERROR(LDI_ERR_NOMEM);
 	}
 	(*footer)->logger = logger;
 	read_footer(source, *footer);
 
 	log_footer(*footer);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
@@ -186,7 +187,7 @@ vhd_footer_write(struct vhd_footer *footer, void *dest)
 	write_uuid(&footer->unique_id, bytes + UNIQUE_ID_OFFSET);
 	write_bool(footer->saved_state, bytes + SAVED_STATE_OFFSET);
 
-	return LDI_ERR_NOERROR;
+	return NO_ERROR;
 }
 
 /*
