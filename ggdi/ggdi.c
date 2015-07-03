@@ -47,6 +47,7 @@ ggdi_serve(int unit, struct diskimage *di)
 {
 	struct g_gate_ctl_io ggio;
 	size_t bsize;
+	LDI_ERROR result;
 
 	ggio.gctl_version = G_GATE_VERSION;
 	ggio.gctl_unit = unit;
@@ -97,18 +98,18 @@ once_again:
 					error = ENOMEM;
 			}
 			if (error == 0) {
-				if (diskimage_read(di, ggio.gctl_data, 
-				    ggio.gctl_length, 
-				    ggio.gctl_offset) != LDI_ERR_NOERROR) 
+				result = diskimage_read(di, ggio.gctl_data, 
+				    ggio.gctl_length, ggio.gctl_offset);
+				if (result.code != LDI_ERR_NOERROR) 
 					error = errno;
 			}
 			break;
 
 		case BIO_DELETE:
 		case BIO_WRITE:
-			if (diskimage_write(di, ggio.gctl_data, 
-			    ggio.gctl_length, 
-			    ggio.gctl_offset) != LDI_ERR_NOERROR) 
+			result = diskimage_write(di, ggio.gctl_data, 
+			    ggio.gctl_length, ggio.gctl_offset);
+			if (result.code != LDI_ERR_NOERROR) 
 				error = errno;
 			break;
 		default:
@@ -143,7 +144,7 @@ ggdi_create(char *path)
 		.write = log_write
 	};
 	res = diskimage_open(path, "vhd", logger, &di);
-	if (res != LDI_ERR_NOERROR) {
+	if (res.code != LDI_ERR_NOERROR) {
 		printf("Error opening disk: %s\n", path);
 		exit(-1);
 	}
