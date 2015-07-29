@@ -65,8 +65,15 @@ filemap_create(int fd, size_t offset, size_t length, struct filemap **map, struc
 
 	/* Allocate memory for the filemap. */
 	*map = malloc(sizeof(struct filemap));
+	if (!*map) {
+		return ERROR(LDI_ERR_NOMEM);
+	}
 
 	(*map)->internal = malloc(sizeof(struct filemap_internal));
+	if (!(*map)->internal) {
+		free(*map);
+		return ERROR(LDI_ERR_NOMEM);
+	}
 
 	/* Make the range page aligned. */
 	align(&offset, &length);

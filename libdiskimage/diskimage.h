@@ -15,12 +15,16 @@ typedef enum {
 	LDI_ERR_FILENOTSUP,
 	/* A read or write outside the valid range */
 	LDI_ERR_OUTOFRANGE,
+	/* Failure when opening a file */
+	LDI_ERR_FILEERROR,
 	/* Failure when reading or writing a file */
 	LDI_ERR_IO,
 	/* An unknown error occured */
 	LDI_ERR_UNKNOWN,
 	/* Error when parsing a file. Possibly corrupt. */
 	LDI_ERR_PARSEERROR,
+	/* Internal programming error */
+	LDI_ERR_INTERNAL
 }	LDI_ERROR_CODE;
 
 /* Defines the error struct returned by functions in libdiskimage */

@@ -19,7 +19,7 @@ struct file;
 /*
  * Creates a new file interface.
  */
-void	fileinterface_create(struct fileinterface **fi);
+LDI_ERROR	fileinterface_create(struct fileinterface **fi);
 
 /*
  * Frees the file interface and zeros the pointer.
@@ -29,12 +29,12 @@ void	fileinterface_destroy(struct fileinterface **fi);
 /*
  * Returns a path for the given filename in the given directory.
  */
-char   *fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename);
+LDI_ERROR	fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename, char **result);
 
 /*
  * Opens a file with the given path.
  */
-void	file_open(struct fileinterface *fi, char *path, struct file **file);
+LDI_ERROR	file_open(struct fileinterface *fi, char *path, struct file **file);
 
 /*
  * Closes the given file and sets the pointer to zero.
@@ -44,12 +44,12 @@ void	file_close(struct file **f);
 /*
  * Returns the current size of the given file.
  */
-size_t	file_getsize(struct file *f);
+LDI_ERROR	file_getsize(struct file *f, size_t *size);
 
 /*
  * Changes the size of the given file.
  */
-void	file_setsize(struct file *f, size_t newsize);
+LDI_ERROR	file_setsize(struct file *f, size_t newsize);
 
 /*
  * Returns a filemap struct with a chunk of the file mapped to memory.

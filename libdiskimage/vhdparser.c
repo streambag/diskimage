@@ -94,7 +94,7 @@ read_dynamic_data(struct vhd_parser *parser)
 
 	result = read_dynamic_header(parser);
 
-	if (result.code != LDI_ERR_NOERROR) {
+	if (IS_ERROR(result)) {
 		/*
 		 * Something went wrong when reading the dynamic header,
 		 * don't attempt to read the BAT, since it depends on the
@@ -151,7 +151,10 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	struct file *file;
 
 	/* Open the backing file. */
-	file_open(fi, path, &file);
+	result = file_open(fi, path, &file);
+	if (IS_ERROR(result)) {
+		return result;
+	}
 
 	errno = 0;
 	*parser = malloc((unsigned int)sizeof(struct vhd_parser));
@@ -161,7 +164,12 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	vhd_parser = (struct vhd_parser *)(*parser);
 	vhd_parser->file = file;
 
-	vhd_parser->filesize = file_getsize(file);
+	result = file_getsize(file, &vhd_parser->filesize);
+	if (IS_ERROR(result)) {
+		vhd_parser_destroy(parser);
+		return result;
+	}
+
 	vhd_parser->logger = logger;
 	/* Set pointers to NULL as default. */
 	vhd_parser->footer = NULL;
@@ -171,7 +179,7 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	/* Read the footer */
 	result = read_footer(vhd_parser);
 
-	if (result.code != LDI_ERR_NOERROR) {
+	if (IS_ERROR(result)) {
 		/* We couldn't read the footer. Clean up and return. */
 		vhd_parser_destroy(parser);
 		return result;
@@ -179,7 +187,7 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	vhd_parser->disk_type = vhd_footer_disk_type(vhd_parser->footer);
 
 	result = read_format_specific_data(vhd_parser);
-	if (result.code != LDI_ERR_NOERROR) {
+	if (IS_ERROR(result)) {
 		/*
 		 * Something went wrong when reading the format specific
 		 * data.
@@ -325,7 +333,7 @@ read_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 
 			/* Do the actual read. */
 			result = read_from_raw_offset(parser->file, buf, bytes_to_read, file_offset, parser->logger);
-			if (result.code != LDI_ERR_NOERROR) {
+			if (IS_ERROR(result)) {
 				return result;
 			}
 		}
@@ -383,6 +391,7 @@ extend_file(struct vhd_parser *parser)
 {
 	size_t old_size, extension_size, new_size;
 	struct filemap *map;
+	LDI_ERROR res;
 
 	old_size = parser->filesize;
 
@@ -390,7 +399,10 @@ extend_file(struct vhd_parser *parser)
 	extension_size = get_block_size(parser) + get_block_bitmap_size(parser);
 	new_size = old_size + extension_size;
 
-	file_setsize(parser->file, new_size);
+	res = file_setsize(parser->file, new_size);
+	if (IS_ERROR(res)) {
+		return res;
+	}
 
 	/* Write a new footer at the end. */
 	file_getmap(parser->file, new_size - 512, 512, &map, parser->logger);
@@ -403,7 +415,10 @@ extend_file(struct vhd_parser *parser)
 	filemap_destroy(&map);
 
 	/* Update parser->filesize now that the size is updated. */
-	parser->filesize = file_getsize(parser->file);
+	res = file_getsize(parser->file, &parser->filesize);
+	if (IS_ERROR(res)) {
+		return res;
+	}
 
 	return NO_ERROR;
 }
@@ -504,7 +519,7 @@ write_dynamic(struct vhd_parser *parser, char *buf, size_t nbytes, off_t offset)
 		 * do some optimization during read. This is not what we do
 		 * below. Instead, we indicate that all sectors in the block
 		 * have data in them if one of them have. This is probably
-		 * not ideal, but seems to be whan VirtualBox does.
+		 * not ideal, but seems to be what VirtualBox does.
 		 */
 		file_getmap(parser->file, block_offset * SECTOR_SIZE, block_bitmap_size, &map, parser->logger);
 		sectors_per_block = get_block_size(parser) / SECTOR_SIZE;

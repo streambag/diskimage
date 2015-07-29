@@ -3,6 +3,8 @@
 #include <regex.h>
 #include <string.h>
 
+#include "internal.h"
+#include "diskimage.h"
 #include "vmdkextentdescriptor.h"
 
 /*
@@ -192,7 +194,7 @@ initialize(char *source, regmatch_t matches[], struct vmdkextentdescriptor *desc
 /*
  * Creates a new extentdescriptor given the description in source.
  */
-int
+LDI_ERROR
 vmdkextentdescriptor_new(char *source, struct vmdkextentdescriptor **descriptor)
 {
 	regex_t regex;
@@ -213,7 +215,7 @@ vmdkextentdescriptor_new(char *source, struct vmdkextentdescriptor **descriptor)
 	if (res != 0) {
 		/* Failed to compile the regex. */
 		vmdkextentdescriptor_destroy(descriptor);
-		return -1;
+		return ERROR(LDI_ERR_INTERNAL);
 	}
 	/* Execute the regex. */
 	res = regexec(&regex, source, 7, matches, 0);
@@ -224,16 +226,16 @@ vmdkextentdescriptor_new(char *source, struct vmdkextentdescriptor **descriptor)
 	if (res != 0) {
 		/* Failed to match the input. */
 		vmdkextentdescriptor_destroy(descriptor);
-		return -1;
+		return ERROR(LDI_ERR_PARSEERROR);
 	}
 	res = initialize(source, matches, *descriptor);
 	if (res != 0) {
 		/* Failed to parse. */
 		vmdkextentdescriptor_destroy(descriptor);
-		return -1;
+		return ERROR(LDI_ERR_PARSEERROR);
 	}
 	/* Everything went well. */
-	return 0;
+	return NO_ERROR;
 }
 
 /*

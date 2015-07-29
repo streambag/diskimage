@@ -42,7 +42,7 @@ vhd_bat_new(void *source, struct vhd_bat **bat, int numblocks, struct logger log
 {
 	errno = 0;
 	*bat = malloc((unsigned int)sizeof(struct vhd_bat));
-	if (bat == NULL) {
+	if (!bat) {
 		return ERROR(LDI_ERR_NOMEM);
 	}
 	(*bat)->numblocks = numblocks;

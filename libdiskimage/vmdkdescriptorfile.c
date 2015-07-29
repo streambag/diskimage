@@ -99,7 +99,7 @@ get_key_value(char *input, size_t length, struct key_value *result)
 /*
  * Stores the version in the descriptorfile.
  */
-int
+LDI_ERROR
 handle_version(struct vmdkdescriptorfile *descriptorfile, char *value)
 {
 	long version;
@@ -108,10 +108,10 @@ handle_version(struct vmdkdescriptorfile *descriptorfile, char *value)
 	version = strtol(value, &endptr, 10);
 	if (endptr != value + strlen(value)) {
 		/* Failed to intepret the entire value as a long. */
-		return -1;
+		return ERROR(LDI_ERR_PARSEERROR);
 	}
 	descriptorfile->version = version;
-	return 0;
+	return NO_ERROR;
 }
 
 /*
@@ -144,7 +144,7 @@ struct type_name types[] = {
 /*
  * Stores the file type (called createtype in the spec) in the descriptorfile.
  */
-int
+LDI_ERROR
 handle_createtype(struct vmdkdescriptorfile *descriptorfile, char *value)
 {
 	int i;
@@ -152,26 +152,26 @@ handle_createtype(struct vmdkdescriptorfile *descriptorfile, char *value)
 	for (i = 0; types[i].name; i++) {
 		if (strcmp(value, types[i].name) == 0) {
 			descriptorfile->filetype = types[i].type;
-			return 0;
+			return NO_ERROR;
 		}
 	}
 	/* This is not a createtype we know. */
-	return -1;
+	return ERROR(LDI_ERR_FILENOTSUP);
 }
 
 /*
  * Stores the extent description in the descriptorfile.
  */
-int
+LDI_ERROR
 handle_extent(struct vmdkdescriptorfile *descriptorfile, char *value)
 {
-	int res;
+	LDI_ERROR res;
 	struct vmdkextentdescriptor *extentdescriptor;
 
 	res = vmdkextentdescriptor_new(value, &extentdescriptor);
-	if (res != 0) {
+	if (IS_ERROR(res)) {
 		/* We couldn't parse the extent. */
-		return -1;
+		return res;
 	}
 	/*
 	 * Increment numextents and reallocate the extents array to make
@@ -181,13 +181,13 @@ handle_extent(struct vmdkdescriptorfile *descriptorfile, char *value)
 	descriptorfile->extents = realloc(descriptorfile->extents, descriptorfile->numextents * sizeof(struct vmdkextentdescriptor *));
 	descriptorfile->extents[descriptorfile->numextents - 1] = extentdescriptor;
 
-	return 0;
+	return NO_ERROR;
 }
 
 /*
  * Stores the creator id in the descriptorfile.
  */
-int
+LDI_ERROR
 handle_cid(struct vmdkdescriptorfile *descriptorfile, char *value)
 {
 	long cid;
@@ -196,16 +196,16 @@ handle_cid(struct vmdkdescriptorfile *descriptorfile, char *value)
 	cid = strtol(value, &endptr, 16);
 	if (endptr != value + strlen(value)) {
 		/* Failed to intepret the entire value as a long. */
-		return -1;
+		return ERROR(LDI_ERR_PARSEERROR);
 	}
 	descriptorfile->cid = cid;
-	return 0;
+	return NO_ERROR;
 }
 
 /*
  * Stores the parent creator id in the descriptorfile.
  */
-int
+LDI_ERROR
 handle_parentcid(struct vmdkdescriptorfile *descriptorfile, char *value)
 {
 	long parentcid;
@@ -214,10 +214,10 @@ handle_parentcid(struct vmdkdescriptorfile *descriptorfile, char *value)
 	parentcid = strtol(value, &endptr, 16);
 	if (endptr != value + strlen(value)) {
 		/* Failed to intepret the entire value as a long. */
-		return -1;
+		return ERROR(LDI_ERR_PARSEERROR);
 	}
 	descriptorfile->parentcid = parentcid;
-	return 0;
+	return NO_ERROR;
 }
 
 /*
@@ -225,7 +225,7 @@ handle_parentcid(struct vmdkdescriptorfile *descriptorfile, char *value)
  */
 struct handler {
 	char   *key;
-	int     (*handler) (struct vmdkdescriptorfile *, char *);
+	LDI_ERROR     (*handler) (struct vmdkdescriptorfile *, char *);
 };
 
 /*
@@ -243,12 +243,13 @@ struct handler handlers[] = {
 /*
  * Calls the handler for the key, if any.
  */
-int
+LDI_ERROR
 handle_argument(struct vmdkdescriptorfile *descriptorfile, char *key, size_t key_length, char *value, size_t value_length)
 {
 	char *value_copy;
-	int i, res;
-	int (*handler) (struct vmdkdescriptorfile *, char *)= NULL;
+	int i;
+	LDI_ERROR res;
+	LDI_ERROR (*handler) (struct vmdkdescriptorfile *, char *)= NULL;
 
 	for (i = 0; handlers[i].key; i++) {
 		if (strlen(handlers[i].key) == key_length
@@ -262,12 +263,12 @@ handle_argument(struct vmdkdescriptorfile *descriptorfile, char *key, size_t key
 		value_copy = strndup(value, value_length);
 		res = handler(descriptorfile, value_copy);
 		free(value_copy);
-		if (res != 0) {
+		if (IS_ERROR(res)) {
 			/* Something went wrong. */
-			return -1;
+			return res;
 		}
 	}
-	return 0;
+	return NO_ERROR;
 }
 
 /*
@@ -280,7 +281,7 @@ vmdkdescriptorfile_new(void *source, struct vmdkdescriptorfile **descriptorfile,
 	size_t line_length;
 	size_t buffer_size = 10;
 	struct key_value key_value;
-	int res;
+	LDI_ERROR res;
 	int bytes_left = length;
 
 	data = source;
@@ -297,15 +298,20 @@ vmdkdescriptorfile_new(void *source, struct vmdkdescriptorfile **descriptorfile,
 			/* Empty or commented line. Ignore. */
 			continue;
 		}
-		res = handle_argument(*descriptorfile, key_value.key, key_value.key_length, key_value.value, key_value.value_length);
+		res = handle_argument(
+		    *descriptorfile,
+		    key_value.key,
+		    key_value.key_length,
+		    key_value.value,
+		    key_value.value_length);
 
-		if (res != 0) {
+		if (IS_ERROR(res)) {
 			/*
 			 * Something went wrong handling this key value
 			 * pair.
 			 */
 			vmdkdescriptorfile_destroy(descriptorfile);
-			return ERROR(LDI_ERR_PARSEERROR);
+			return res;
 		}
 	}
 

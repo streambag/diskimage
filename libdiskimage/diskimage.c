@@ -50,10 +50,18 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 	if (parser == NULL)
 		return ERROR(LDI_ERR_FORMATUNKNOWN);
 
-	fileinterface_create(&fileinterface);
+	res = fileinterface_create(&fileinterface);
+	if (IS_ERROR(res)) {
+		return res;
+	}
 
 	/* All state must be saved in the diskimage struct. */
 	*di = malloc(sizeof(struct diskimage));
+	if (!di) {
+		fileinterface_destroy(&fileinterface);
+		return ERROR(LDI_ERR_NOMEM);
+	}
+
 	(*di)->parser = parser;
 	(*di)->fileinterface = fileinterface;
 
@@ -64,7 +72,8 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 
 	/* Let the parser create its own format specific parser state. */
 	res = (*di)->parser->construct(fileinterface, path, &(*di)->parser_state, logger);
-	if (res.code != LDI_ERR_NOERROR) {
+	if (IS_ERROR(res)) {
+		fileinterface_destroy(&fileinterface);
 		free(*di);
 		*di = NULL;
 		return res;
@@ -83,6 +92,8 @@ diskimage_destroy(struct diskimage **di)
 {
 	/* Let the parser destroy the parser state. */
 	(*di)->parser->destructor(&((*di)->parser_state));
+
+	fileinterface_destroy(&(*di)->fileinterface);
 
 	/* Free the memory allocated for the diskimage struct. */
 	free(*di);

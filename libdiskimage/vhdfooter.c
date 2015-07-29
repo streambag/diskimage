@@ -11,7 +11,7 @@
 #include "vhdchecksum.h"
 #include "vhdserialization.h"
 
-/* Defines the offsets used in VHD file footer. */
+/* Defines the offsets used in a VHD file footer. */
 #define COOKIE_OFFSET 0
 #define FEATURES_OFFSET 8
 #define FILE_FORMAT_VERSION_OFFSET 12

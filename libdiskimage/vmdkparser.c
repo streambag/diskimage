@@ -25,6 +25,8 @@ struct vmdkparser {
 	struct file *datafile;
 };
 
+void	vmdkparser_destroy(void **parser);
+
 /*
  * Creates the parser state.
  */
@@ -35,29 +37,80 @@ vmdkparser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 	struct filemap *map;
 	char *dir;
 	char *datapath;
+	LDI_ERROR res;
 
+	/* Allocate the parser structure. */
 	*parser = malloc(sizeof(struct vmdkparser));
+	if (!*parser) {
+		/* Failed to allocate the parser. */
+		return ERROR(LDI_ERR_NOMEM);
+	}
 	vmdkparser = (struct vmdkparser *)(*parser);
 	vmdkparser->logger = logger;
 
-	/* Open the descriptor file. */
-	file_open(fi, path, &vmdkparser->descriptor);
-	vmdkparser->descriptorlength = file_getsize(vmdkparser->descriptor);
+	/* Intialize pointers to null to simplify cleanup on error. */
+	vmdkparser->descriptor = NULL;
+	vmdkparser->descriptorfile = NULL;
+	vmdkparser->datafile = NULL;
 
-	file_getmap(vmdkparser->descriptor, 0, vmdkparser->descriptorlength, &map, logger);
-	vmdkdescriptorfile_new(map->pointer, &vmdkparser->descriptorfile, vmdkparser->descriptorlength, logger);
+	/* Open the descriptor file. */
+	res = file_open(fi, path, &vmdkparser->descriptor);
+	if (IS_ERROR(res)) {
+		/* Something went wrong opening the descriptor file. */
+		vmdkparser_destroy(parser);
+		return res;
+	}
+
+	/* Get the size of the descriptor file. */
+	res = file_getsize(vmdkparser->descriptor, &vmdkparser->descriptorlength);
+	if (IS_ERROR(res)) {
+		/* Failed to get the size of the file. */
+		vmdkparser_destroy(parser);
+		return res;
+	}
+
+	/* Map the entire descriptorfile into memory. */
+	res = file_getmap(vmdkparser->descriptor, 0, vmdkparser->descriptorlength, &map, logger);
+	if (IS_ERROR(res)) {
+		/* Couldn't map memory. */
+		vmdkparser_destroy(parser);
+		return res;
+	}
+
+	/* Create a descriptorfile struct from the mapped file. */
+	res = vmdkdescriptorfile_new(
+	    map->pointer,
+	    &vmdkparser->descriptorfile,
+	    vmdkparser->descriptorlength,
+	    logger);
 	filemap_destroy(&map);
+	if (IS_ERROR(res)) {
+		/* Couldn't read the descriptorfile. */
+		vmdkparser_destroy(parser);
+		return res;
+	}
 
 	/* Get the path to the data file. */
 	dir = file_getdirectory(vmdkparser->descriptor);
-	datapath = fileinterface_getpath(fi, dir, vmdkparser->descriptorfile->extents[0]->filename);
+	res = fileinterface_getpath(fi, dir, vmdkparser->descriptorfile->extents[0]->filename, &datapath);
+	if (IS_ERROR(res)) {
+		/* Couldn't get file path. */
+		vmdkparser_destroy(parser);
+		return res;
+	}
 
 	/* Open the data file. */
-	file_open(fi, datapath, &vmdkparser->datafile);
+	res = file_open(fi, datapath, &vmdkparser->datafile);
 
 	/* Clean up temporary strings. */
 	free(dir);
 	free(datapath);
+
+	/* Check if the file was opened correctly. */
+	if (IS_ERROR(res)) {
+		/* Failed to open the data file. */
+		vmdkparser_destroy(parser);
+	}
 
 	return NO_ERROR;
 }
@@ -70,9 +123,17 @@ vmdkparser_destroy(void **parser)
 {
 	struct vmdkparser *vmdkparser = *parser;
 
-	vmdkdescriptorfile_destroy(&vmdkparser->descriptorfile);
-	file_close(&vmdkparser->descriptor);
-	file_close(&vmdkparser->datafile);
+	if (vmdkparser->descriptorfile) {
+		vmdkdescriptorfile_destroy(&vmdkparser->descriptorfile);
+	}
+
+	if (vmdkparser->descriptor) {
+		file_close(&vmdkparser->descriptor);
+	}
+
+	if (vmdkparser->datafile) {
+		file_close(&vmdkparser->datafile);
+	}
 	free(*parser);
 }
 
@@ -99,8 +160,12 @@ vmdkparser_read(void *parser, char *buf, size_t nbytes, off_t offset)
 {
 	struct filemap *map;
 	struct vmdkparser *vmdkparser = parser;
+	LDI_ERROR res;
 
-	file_getmap(vmdkparser->datafile, offset, nbytes, &map, vmdkparser->logger);
+	res = file_getmap(vmdkparser->datafile, offset, nbytes, &map, vmdkparser->logger);
+	if (IS_ERROR(res)) {
+		return res;
+	}
 	memcpy(buf, map->pointer, nbytes);
 	filemap_destroy(&map);
 

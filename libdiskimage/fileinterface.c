@@ -3,6 +3,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <errno.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,10 +34,15 @@ struct file {
 /*
  * Creates a new file interface.
  */
-void
+LDI_ERROR
 fileinterface_create(struct fileinterface **fi)
 {
 	*fi = malloc(sizeof(struct fileinterface));
+	if (!*fi) {
+		return ERROR(LDI_ERR_NOMEM);
+	}
+
+	return NO_ERROR;
 }
 
 /*
@@ -49,24 +55,47 @@ fileinterface_destroy(struct fileinterface **fi)
 	*fi = NULL;
 }
 
-char   *
-fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename)
+/*
+ * Returns a new string with the path for the given filename.
+ */
+LDI_ERROR
+fileinterface_getpath(struct fileinterface *fi, char *directory, char *filename, char **result)
 {
-	char *res;
+	asprintf(result, "%s/%s", directory, filename);
+	if (!result) 
+		return ERROR(LDI_ERR_NOMEM);
 
-	asprintf(&res, "%s/%s", directory, filename);
-	return res;
+	return NO_ERROR;
 }
 
 /*
  * Opens a file with the given path.
  */
-void
+LDI_ERROR
 file_open(struct fileinterface *fi, char *path, struct file **file)
 {
+	/* Create the file structure. */
 	*file = malloc(sizeof(struct file));
+	if (!*file) {
+		return ERROR(LDI_ERR_NOMEM);
+	}
+	(*file)->path = NULL;
+
+	/* Try to open the file. */
 	(*file)->fd = open(path, O_RDWR | O_DIRECT | O_FSYNC);
+	if ((*file)->fd == -1) {
+		file_close(file);
+		return ERROR2(LDI_ERR_FILEERROR, errno);
+	}
+
+	/* Keep a copy of the path to the file. */
 	(*file)->path = strdup(path);
+	if (!(*file)->path) {
+		file_close(file);
+		return ERROR(LDI_ERR_NOMEM);
+	}
+
+	return NO_ERROR;
 }
 
 /*
@@ -75,8 +104,13 @@ file_open(struct fileinterface *fi, char *path, struct file **file)
 void
 file_close(struct file **f)
 {
-	close((*f)->fd);
-	free((*f)->path);
+	if ((*f)->fd >= 0) {
+		close((*f)->fd);
+	}
+
+	if ((*f)->path != NULL) {
+		free((*f)->path);
+	}
 	free(*f);
 	*f = NULL;
 }
@@ -84,13 +118,19 @@ file_close(struct file **f)
 /*
  * Returns the current size of the given file.
  */
-size_t
-file_getsize(struct file *f)
+LDI_ERROR
+file_getsize(struct file *f, size_t *size)
 {
 	struct stat sb;
+	int res;
 
-	fstat(f->fd, &sb);
-	return sb.st_size;
+	res = fstat(f->fd, &sb);
+	if (res == -1) {
+		return ERROR2(LDI_ERR_IO, errno);
+	}
+	*size=sb.st_size;
+
+	return NO_ERROR;
 }
 
 /*
@@ -103,12 +143,19 @@ write_zeros(int fd, off_t pos, size_t nbytes)
 	int bytes_written;
 
 	buffer = malloc(512);
+	if (!buffer) {
+		/* Failed to allocate buffer. */
+		return ERROR(LDI_ERR_NOMEM);
+	}
+
+	/* Zero out the buffer. */
 	bzero(buffer, 512);
 
 	while (nbytes > 0) {
 		bytes_written = pwrite(fd, buffer, MIN(512, nbytes), pos);
 
 		if (bytes_written < 0) {
+			free(buffer);
 			/* Something went wrong. */
 			return ERROR(LDI_ERR_IO);
 		}
@@ -117,23 +164,37 @@ write_zeros(int fd, off_t pos, size_t nbytes)
 		nbytes -= bytes_written;
 	}
 
+	free(buffer);
 	return NO_ERROR;
 }
 
 /*
  * Changes the size of the given file.
  */
-void
+LDI_ERROR
 file_setsize(struct file *f, size_t newsize)
 {
-	size_t oldsize = file_getsize(f);
+	size_t oldsize;
+	LDI_ERROR res;
+	
+	res = file_getsize(f, &oldsize);
+	if (IS_ERROR(res)) {
+		return res;
+	}
 
 	if (newsize > oldsize) {
 		/* Fill the new space with zeros. */
-		write_zeros(f->fd, oldsize, newsize - oldsize);
+		res = write_zeros(f->fd, oldsize, newsize - oldsize);
+		if (IS_ERROR(res)) {
+			return res;
+		}
 	} else {
-		ftruncate(f->fd, newsize);
+		if (ftruncate(f->fd, newsize) == -1) {
+			return ERROR2(LDI_ERR_IO, errno);
+		}
 	}
+
+	return NO_ERROR;
 }
 
 /*

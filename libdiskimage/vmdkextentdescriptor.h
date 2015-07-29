@@ -37,7 +37,7 @@ struct vmdkextentdescriptor {
 /*
  * Creates a new extentdescriptor given the description in source.
  */
-int	vmdkextentdescriptor_new(char *source, struct vmdkextentdescriptor **descriptor);
+LDI_ERROR   vmdkextentdescriptor_new(char *source, struct vmdkextentdescriptor **descriptor);
 
 /*
  * Frees memory and zeros the descriptor.
