@@ -1,7 +1,19 @@
 
 #include <atf-c.h>
 
-#include "vmdkdescriptorfile.h"
+/* Include the source file to test. */
+#include "vmdkdescriptorfile.c"
+
+LDI_ERROR vmdkextentdescriptor_new(char *source, struct vmdkextentdescriptor **descriptor) {
+	*descriptor = malloc(sizeof(struct vmdkextentdescriptor));
+	(*descriptor)->sectors = 44042240;
+	return NO_ERROR;
+}
+
+void vmdkextentdescriptor_destroy(struct vmdkextentdescriptor **descriptor) {
+	free(*descriptor);
+	*descriptor = NULL;
+}
 
 char *testdata = 
     "# Disk DescriptorFile\n"

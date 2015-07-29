@@ -3,8 +3,12 @@
 
 #include <string.h>
 
-#include "vhdfooter.h"
-#include "diskimage.h"
+/* Include the source file to test. */
+#include "vhdfooter.c"
+
+/* The following are dependencies of vhdfooter that we don't want to stub. */
+#include "vhdserialization.c"
+#include "vhdchecksum.c"
 
 
 char valid_footer[512] = {

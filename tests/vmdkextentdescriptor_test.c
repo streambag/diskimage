@@ -1,8 +1,8 @@
 
 #include <atf-c.h>
 
-#include "diskimage.h"
-#include "vmdkextentdescriptor.h"
+/* Include the source file to test. */
+#include "vmdkextentdescriptor.c"
 
 ATF_TC_WITHOUT_HEAD(vmdkextentdescriptor_new__correctly_reads_data);
 ATF_TC_BODY(vmdkextentdescriptor_new__correctly_reads_data, tc)
