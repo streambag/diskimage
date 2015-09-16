@@ -1,7 +1,15 @@
 
 #include <atf-c.h>
+#include <stdio.h>
+#include <uuid.h>
 
 #include <string.h>
+
+#include "memorytest.h"
+
+#define TESTSEAM(functionname) functionname ## _fake
+
+void uuid_to_string_fake(const uuid_t *uuid, char **str, uint32_t *status);
 
 /* Include the source file to test. */
 #include "vhdfooter.c"
@@ -45,10 +53,26 @@ struct logger empty_logger = {
     .write = empty_log_write
 };
 
+/*
+ * A test implementation of uuid_to_string which keeps track of the allocated
+ * memory and can simulate allocation failure.
+ */
+void uuid_to_string_fake(const uuid_t *uuid, char **str, uint32_t *status)
+{
+	if (should_simulate_allocation_failure()) {
+		*status = uuid_s_no_memory;
+		return;
+	}
+
+	uuid_to_string(uuid, str, status);
+	register_allocation(*str);
+}
+
 ATF_TC_WITHOUT_HEAD(vhd_footer_new__correctly_reads_valid_data);
 ATF_TC_BODY(vhd_footer_new__correctly_reads_valid_data, tc)
 {
     struct vhd_footer *footer;
+    reset_memory();
 
     vhd_footer_new(valid_footer, &footer, empty_logger);
 
@@ -62,12 +86,16 @@ ATF_TC_BODY(vhd_footer_new__correctly_reads_valid_data, tc)
     ATF_CHECK_EQ(-1, vhd_footer_offset(footer));
 
     vhd_footer_destroy(&footer);
+
+    /* Check that all allocated memory has been freed. */
+    check_memory();
 }
 
 ATF_TC_WITHOUT_HEAD(vhd_footer_new__correctly_reads_invalid_data);
 ATF_TC_BODY(vhd_footer_new__correctly_reads_invalid_data, tc)
 {
     struct vhd_footer *footer;
+    reset_memory();
 
     vhd_footer_new(invalid_footer, &footer, empty_logger);
 
@@ -75,6 +103,9 @@ ATF_TC_BODY(vhd_footer_new__correctly_reads_invalid_data, tc)
     ATF_CHECK(!vhd_footer_isvalid(footer));
 
     vhd_footer_destroy(&footer);
+
+    /* Check that all allocated memory has been freed. */
+    check_memory();
 }
 
 ATF_TC_WITHOUT_HEAD(vhd_footer_write__correctly_writes_data);
@@ -82,6 +113,7 @@ ATF_TC_BODY(vhd_footer_write__correctly_writes_data, tc)
 {
     struct vhd_footer *footer;
     char output[512];
+    reset_memory();
 
     vhd_footer_new(valid_footer, &footer, empty_logger);
 
@@ -91,6 +123,37 @@ ATF_TC_BODY(vhd_footer_write__correctly_writes_data, tc)
     ATF_CHECK(memcmp(valid_footer, output, 512));
 
     vhd_footer_destroy(&footer);
+
+    /* Check that all allocated memory has been freed. */
+    check_memory();
+}
+
+ATF_TC_WITHOUT_HEAD(vhd_footer_new__returns_error_on_allocation_failure);
+ATF_TC_BODY(vhd_footer_new__returns_error_on_allocation_failure, tc)
+{
+	struct vhd_footer *footer;
+	LDI_ERROR res;
+	int allocations, i;
+	/* Count the number of allocations */
+	reset_memory();
+	vhd_footer_new(valid_footer, &footer, empty_logger);
+	allocations = get_allocation_count();
+	vhd_footer_destroy(&footer);
+
+	for (i = 0; i < allocations; i++) {
+		/* Simulate that the i+1:th allocation fails. */
+		reset_memory();
+		simulate_allocation_failure(i);
+
+		res = vhd_footer_new(valid_footer, &footer, empty_logger);
+		/* Check that the return value is set correctly and that the
+		 * pointer is set to null. */
+		ATF_CHECK_EQ(LDI_ERR_NOMEM, res.code);
+		ATF_CHECK_EQ(NULL, footer);
+
+		/* Check that all allocated memory has been freed. */
+		check_memory();
+	}
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -98,5 +161,6 @@ ATF_TP_ADD_TCS(tp)
     ATF_TP_ADD_TC(tp, vhd_footer_new__correctly_reads_valid_data);
     ATF_TP_ADD_TC(tp, vhd_footer_new__correctly_reads_invalid_data);
     ATF_TP_ADD_TC(tp, vhd_footer_write__correctly_writes_data);
+    ATF_TP_ADD_TC(tp, vhd_footer_new__returns_error_on_allocation_failure);
     return 0;
 }

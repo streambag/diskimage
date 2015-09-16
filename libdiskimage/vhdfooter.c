@@ -28,7 +28,7 @@
 #define UNIQUE_ID_OFFSET 68
 #define SAVED_STATE_OFFSET 84
 
-void	log_footer(struct vhd_footer *footer);
+LDI_ERROR	log_footer(struct vhd_footer *footer);
 
 /* Features defined in the footer. */
 enum vhd_features {
@@ -140,7 +140,7 @@ get_uuid_string(uuid_t uuid)
 
 	uint32_t status;
 
-	uuid_to_string(&uuid, &uuid_str, &status);
+	TESTSEAM(uuid_to_string)(&uuid, &uuid_str, &status);
 	return uuid_str;
 }
 
@@ -150,15 +150,20 @@ get_uuid_string(uuid_t uuid)
 LDI_ERROR
 vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
 {
+	LDI_ERROR res;
 	errno = 0;
-	*footer = malloc((unsigned int)sizeof(struct vhd_footer));
-	if (footer == NULL) {
+	*footer = TESTSEAM(malloc)((unsigned int)sizeof(struct vhd_footer));
+	if (*footer == NULL) {
 		return ERROR(LDI_ERR_NOMEM);
 	}
 	(*footer)->logger = logger;
 	read_footer(source, *footer);
 
-	log_footer(*footer);
+	res = log_footer(*footer);
+	if (IS_ERROR(res)) {
+		vhd_footer_destroy(footer);
+		return res;
+	}
 
 	return NO_ERROR;
 }
@@ -193,10 +198,16 @@ vhd_footer_write(struct vhd_footer *footer, void *dest)
 /*
  * Prints all the values in the footer, for debug purposes.
  */
-void
+LDI_ERROR
 log_footer(struct vhd_footer *footer)
 {
 	char *uuid_str;
+	uint32_t status;
+
+	TESTSEAM(uuid_to_string)(&footer->unique_id, &uuid_str, &status);
+	if (status == uuid_s_no_memory) {
+		return ERROR(LDI_ERR_NOMEM);
+	}
 
 	LOG_VERBOSE(footer->logger, "Cookie:\t\t\t%s\n", footer->cookie);
 	LOG_VERBOSE(footer->logger, "Features:\t\t%d\n", footer->features);
@@ -224,12 +235,13 @@ log_footer(struct vhd_footer *footer)
 		    footer->calculated_checksum);
 	}
 
-	uuid_str = get_uuid_string(footer->unique_id);
 	LOG_VERBOSE(footer->logger, "Unique id:\t\t%s", uuid_str);
-	free(uuid_str);
+	TESTSEAM(free)(uuid_str);
 
 	LOG_VERBOSE(footer->logger, "\n");
 	LOG_VERBOSE(footer->logger, "Saved state:\t\t%d\n", footer->saved_state);
+
+	return NO_ERROR;
 }
 
 /*
@@ -238,7 +250,7 @@ log_footer(struct vhd_footer *footer)
 void
 vhd_footer_destroy(struct vhd_footer **footer)
 {
-	free(*footer);
+	TESTSEAM(free)(*footer);
 	*footer = NULL;
 }
 
