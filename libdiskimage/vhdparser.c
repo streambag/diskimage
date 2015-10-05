@@ -25,7 +25,7 @@ struct vhd_parser {
 	/* The type of disk. */
 	enum disk_type disk_type;
 	/* The structure read from the footer. */
-	struct vhd_footer *footer;
+	struct vhdfooter *footer;
 	/*
 	 * The structure read from the header (only for dynamic/differencing
 	 * disks).
@@ -54,7 +54,7 @@ read_dynamic_header(struct vhd_parser *parser)
 	size_t bat_size;
 	LDI_ERROR result;
 
-	header_offset = vhd_footer_offset(parser->footer);
+	header_offset = vhdfooter_offset(parser->footer);
 
 	file_getmap(parser->file, header_offset, header_offset + 1024, &map, parser->logger);
 	result = vhd_header_new(map->pointer, &parser->header, parser->logger);
@@ -116,7 +116,7 @@ read_footer(struct vhd_parser *parser)
 	LDI_ERROR result;
 
 	file_getmap(parser->file, parser->filesize - 512LL, 512, &map, parser->logger);
-	result = vhd_footer_new(map->pointer, &parser->footer, parser->logger);
+	result = vhdfooter_new(map->pointer, &parser->footer, parser->logger);
 	filemap_destroy(&map);
 
 	return result;
@@ -184,7 +184,7 @@ vhd_parser_new(struct fileinterface *fi, char *path, void **parser, struct logge
 		vhd_parser_destroy(parser);
 		return result;
 	}
-	vhd_parser->disk_type = vhd_footer_disk_type(vhd_parser->footer);
+	vhd_parser->disk_type = vhdfooter_disk_type(vhd_parser->footer);
 
 	result = read_format_specific_data(vhd_parser);
 	if (IS_ERROR(result)) {
@@ -211,7 +211,7 @@ vhd_parser_destroy(void **parser)
 	file_close(&(vhd_parser)->file);
 
 	if (vhd_parser->footer) {
-		vhd_footer_destroy(&vhd_parser->footer);
+		vhdfooter_destroy(&vhd_parser->footer);
 	}
 	free(*parser);
 	*parser = NULL;
@@ -227,7 +227,7 @@ vhd_parser_diskinfo(void *parser)
 	struct diskinfo result;
 
 	vhd_parser = (struct vhd_parser *)parser;
-	result.disksize = vhd_footer_disksize(vhd_parser->footer);
+	result.disksize = vhdfooter_disksize(vhd_parser->footer);
 
 	return result;
 }
@@ -406,7 +406,7 @@ extend_file(struct vhd_parser *parser)
 
 	/* Write a new footer at the end. */
 	file_getmap(parser->file, new_size - 512, 512, &map, parser->logger);
-	vhd_footer_write(parser->footer, map->pointer);
+	vhdfooter_write(parser->footer, map->pointer);
 	filemap_destroy(&map);
 
 	/* Zero out the old footer. */

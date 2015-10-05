@@ -8,48 +8,48 @@
 #include "diskimage.h"
 
 /* Represents a VHD file footer. */
-struct vhd_footer;
+struct vhdfooter;
 
 /*
  * Creates a new vhd footer structure by reading from source.
  */
 LDI_ERROR
-vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger);
+vhdfooter_new(void *source, struct vhdfooter **footer, struct logger logger);
 
 /*
  * Writes the footer to the destination buffer.
  */
 LDI_ERROR
-vhd_footer_write(struct vhd_footer *footer, void *dest);
+vhdfooter_write(struct vhdfooter *footer, void *dest);
 
 /*
  * Deallocates the memory for the footer and sets the pointer to NULL.
  */
-void
-	vhd_footer_destroy(struct vhd_footer **footer);
+void 
+vhdfooter_destroy(struct vhdfooter **footer);
 
 /*
  * Returns true if the checksum for the footer is valid.
  */
 bool
-vhd_footer_isvalid(struct vhd_footer *footer);
+vhdfooter_isvalid(struct vhdfooter *footer);
 
 /*
  * Returns the disk type that this footer represents.
  */
 enum disk_type
-	vhd_footer_disk_type(struct vhd_footer *footer);
+vhdfooter_disk_type(struct vhdfooter *footer);
 
 /*
  * Returns the current size of the disk.
  */
 long
-	vhd_footer_disksize(struct vhd_footer *footer);
+vhdfooter_disksize(struct vhdfooter *footer);
 
 /*
  * Returns the offset to the beginning of the data.
  */
 off_t
-	vhd_footer_offset(struct vhd_footer *footer);
+vhdfooter_offset(struct vhdfooter *footer);
 
 #endif					/* VHDFOOTER_H */

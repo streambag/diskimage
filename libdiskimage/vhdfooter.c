@@ -28,7 +28,7 @@
 #define UNIQUE_ID_OFFSET 68
 #define SAVED_STATE_OFFSET 84
 
-LDI_ERROR	log_footer(struct vhd_footer *footer);
+LDI_ERROR	log_footer(struct vhdfooter *footer);
 
 /* Features defined in the footer. */
 enum vhd_features {
@@ -49,7 +49,7 @@ enum vhd_disk_type {
 };
 
 /* The entire structure of the VHD footer. */
-struct vhd_footer {
+struct vhdfooter {
 	/* The actual data read from the file. */
 	char	cookie[9];
 	enum vhd_features features;
@@ -77,7 +77,7 @@ struct vhd_footer {
  * Calculate the checksum for the entire footer.
  */
 static uint32_t
-calculate_checksum(struct vhd_footer *footer)
+calculate_checksum(struct vhdfooter *footer)
 {
 	uint32_t result = 0;
 
@@ -104,7 +104,7 @@ calculate_checksum(struct vhd_footer *footer)
  * Reads the entire footer structure from the source.
  */
 static void
-read_footer(void *source, struct vhd_footer *footer)
+read_footer(void *source, struct vhdfooter *footer)
 {
 	uint8_t *bytes = (uint8_t *)source;
 
@@ -148,11 +148,11 @@ get_uuid_string(uuid_t uuid)
  * Creates a new vhd footer structure by reading from source.
  */
 LDI_ERROR
-vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
+vhdfooter_new(void *source, struct vhdfooter **footer, struct logger logger)
 {
 	LDI_ERROR res;
 	errno = 0;
-	*footer = TESTSEAM(malloc)((unsigned int)sizeof(struct vhd_footer));
+	*footer = TESTSEAM(malloc)((unsigned int)sizeof(struct vhdfooter));
 	if (*footer == NULL) {
 		return ERROR(LDI_ERR_NOMEM);
 	}
@@ -161,7 +161,7 @@ vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
 
 	res = log_footer(*footer);
 	if (IS_ERROR(res)) {
-		vhd_footer_destroy(footer);
+		vhdfooter_destroy(footer);
 		return res;
 	}
 
@@ -172,7 +172,7 @@ vhd_footer_new(void *source, struct vhd_footer **footer, struct logger logger)
  * Writes the footer to the destination buffer.
  */
 LDI_ERROR
-vhd_footer_write(struct vhd_footer *footer, void *dest)
+vhdfooter_write(struct vhdfooter *footer, void *dest)
 {
 	uint8_t *bytes = (uint8_t *)dest;
 
@@ -199,7 +199,7 @@ vhd_footer_write(struct vhd_footer *footer, void *dest)
  * Prints all the values in the footer, for debug purposes.
  */
 LDI_ERROR
-log_footer(struct vhd_footer *footer)
+log_footer(struct vhdfooter *footer)
 {
 	char *uuid_str;
 	uint32_t status;
@@ -228,7 +228,7 @@ log_footer(struct vhd_footer *footer)
 	    footer->disk_geometry.sectors_per_track);
 	LOG_VERBOSE(footer->logger, "Disk type:\t\t%d\n", footer->disk_type);
 	LOG_VERBOSE(footer->logger, "Checksum:\t\t%u (", footer->checksum);
-	if (vhd_footer_isvalid(footer)) {
+	if (vhdfooter_isvalid(footer)) {
 		LOG_VERBOSE(footer->logger, "valid)\n");
 	} else {
 		LOG_VERBOSE(footer->logger, "invalid real cheksum: %u)\n",
@@ -248,7 +248,7 @@ log_footer(struct vhd_footer *footer)
  * Deallocates the memory for the footer and sets the pointer to NULL.
  */
 void
-vhd_footer_destroy(struct vhd_footer **footer)
+vhdfooter_destroy(struct vhdfooter **footer)
 {
 	TESTSEAM(free)(*footer);
 	*footer = NULL;
@@ -258,7 +258,7 @@ vhd_footer_destroy(struct vhd_footer **footer)
  * Returns true if the checksum for the footer is valid.
  */
 bool
-vhd_footer_isvalid(struct vhd_footer *footer)
+vhdfooter_isvalid(struct vhdfooter *footer)
 {
 	return footer->checksum == footer->calculated_checksum;
 }
@@ -267,7 +267,7 @@ vhd_footer_isvalid(struct vhd_footer *footer)
  * Returns the disk type that this footer represents.
  */
 enum disk_type
-vhd_footer_disk_type(struct vhd_footer *footer)
+vhdfooter_disk_type(struct vhdfooter *footer)
 {
 	switch (footer->disk_type) {
 	case VHD_TYPE_FIXED:
@@ -285,7 +285,7 @@ vhd_footer_disk_type(struct vhd_footer *footer)
  * Returns the current size of the disk.
  */
 long
-vhd_footer_disksize(struct vhd_footer *footer)
+vhdfooter_disksize(struct vhdfooter *footer)
 {
 	return footer->current_size;
 }
@@ -294,7 +294,7 @@ vhd_footer_disksize(struct vhd_footer *footer)
  * Returns the offset to the beginning of the data.
  */
 off_t
-vhd_footer_offset(struct vhd_footer *footer)
+vhdfooter_offset(struct vhdfooter *footer)
 {
 	return footer->data_offset;
 }
