@@ -2,6 +2,7 @@
 #ifndef _LDI_PARSER_H_
 #define _LDI_PARSER_H_
 
+#include <sys/cdefs.h>
 #include <sys/linker_set.h>
 
 #include "fileinterface.h"
