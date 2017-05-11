@@ -18,7 +18,7 @@ struct diskimage {
 	/* The definition of the parser for the file. */
 	struct ldi_parser *parser;
 	/* The internal state of the parser. */
-	void   *parser_state;
+	void   *parserstate;
 	/* Object used for logging. */
 	struct logger logger;
 };
@@ -71,7 +71,7 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 	(*di)->logger = logger;
 
 	/* Let the parser create its own format specific parser state. */
-	res = (*di)->parser->construct(fileinterface, path, &(*di)->parser_state, logger);
+	res = (*di)->parser->construct(fileinterface, path, &(*di)->parserstate, logger);
 	if (IS_ERROR(res)) {
 		fileinterface_destroy(&fileinterface);
 		free(*di);
@@ -79,7 +79,7 @@ diskimage_open(char *path, char *format, struct logger logger, struct diskimage 
 		return res;
 	}
 	/* Get the disk info from the parser so that we know the disk size */
-	(*di)->diskinfo = (*di)->parser->diskinfo((*di)->parser_state);
+	(*di)->diskinfo = (*di)->parser->diskinfo((*di)->parserstate);
 
 	return NO_ERROR;
 }
@@ -91,7 +91,7 @@ void
 diskimage_destroy(struct diskimage **di)
 {
 	/* Let the parser destroy the parser state. */
-	(*di)->parser->destructor(&((*di)->parser_state));
+	(*di)->parser->destructor(&((*di)->parserstate));
 
 	fileinterface_destroy(&(*di)->fileinterface);
 
@@ -107,7 +107,7 @@ struct diskinfo
 diskimage_diskinfo(struct diskimage *di)
 {
 	/* Hand over to the file format aware parser. */
-	return di->parser->diskinfo(di->parser_state);
+	return di->parser->diskinfo(di->parserstate);
 }
 
 /*
@@ -125,7 +125,7 @@ diskimage_read(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 	LOG_VERBOSE(di->logger, "Reading %d bytes at %d\n", nbytes, offset);
 
 	/* Hand over to the file format aware parser. */
-	result = di->parser->read(di->parser_state, buf, nbytes, offset);
+	result = di->parser->read(di->parserstate, buf, nbytes, offset);
 	LOG_VERBOSE(di->logger, "Result: %d\n", result);
 	return result;
 }
@@ -145,7 +145,7 @@ diskimage_write(struct diskimage *di, char *buf, size_t nbytes, off_t offset)
 	LOG_VERBOSE(di->logger, "Writing %d bytes at %d\n", nbytes, offset);
 
 	/* Hand over to the file format aware parser. */
-	result = di->parser->write(di->parser_state, buf, nbytes, offset);
+	result = di->parser->write(di->parserstate, buf, nbytes, offset);
 	LOG_VERBOSE(di->logger, "Result: %d\n", result);
 	return result;
 }
