@@ -180,7 +180,7 @@ vhdinstance_new(struct fileinterface *fi, char *path, struct vhdinstance **insta
 		vhdinstance_destroy(instance);
 		return result;
 	}
-	(*instance)->disk_type = vhdfooter_disk_type((*instance)->footer);
+	(*instance)->disk_type = vhdfooter_getdisktype((*instance)->footer);
 
 	result = read_format_specific_data((*instance));
 	if (IS_ERROR(result)) {

@@ -11,6 +11,15 @@
 struct vhdfooter;
 
 /*
+ * Possible errors releated to the VHD file footer.
+ */
+enum vhdfooter_status {
+	VHDFOOTER_OK = 0,
+	VHDFOOTER_BADCOOKIE = 1,
+	VHDFOOTER_BADCHECKSUM = 2
+};
+
+/*
  * Creates a new vhd footer structure by reading from source.
  */
 LDI_ERROR
@@ -31,14 +40,14 @@ vhdfooter_destroy(struct vhdfooter **footer);
 /*
  * Returns true if the checksum for the footer is valid.
  */
-bool
-vhdfooter_isvalid(struct vhdfooter *footer);
+enum vhdfooter_status
+vhdfooter_getstatus(struct vhdfooter *footer);
 
 /*
  * Returns the disk type that this footer represents.
  */
 enum disk_type
-vhdfooter_disk_type(struct vhdfooter *footer);
+vhdfooter_getdisktype(struct vhdfooter *footer);
 
 /*
  * Returns the current size of the disk.

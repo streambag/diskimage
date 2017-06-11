@@ -203,11 +203,14 @@ log_footer(struct vhdfooter *footer)
 {
 	char *uuid_str;
 	uint32_t status;
+	enum vhdfooter_status footer_status;
 
 	TESTSEAM(uuid_to_string)(&footer->unique_id, &uuid_str, &status);
 	if (status == uuid_s_no_memory) {
 		return ERROR(LDI_ERR_NOMEM);
 	}
+
+	footer_status = vhdfooter_getstatus(footer);
 
 	LOG_VERBOSE(footer->logger, "Cookie:\t\t\t%s\n", footer->cookie);
 	LOG_VERBOSE(footer->logger, "Features:\t\t%d\n", footer->features);
@@ -228,11 +231,11 @@ log_footer(struct vhdfooter *footer)
 	    footer->disk_geometry.sectors_per_track);
 	LOG_VERBOSE(footer->logger, "Disk type:\t\t%d\n", footer->disk_type);
 	LOG_VERBOSE(footer->logger, "Checksum:\t\t%u (", footer->checksum);
-	if (vhdfooter_isvalid(footer)) {
-		LOG_VERBOSE(footer->logger, "valid)\n");
-	} else {
+	if ((footer_status & VHDFOOTER_BADCHECKSUM) != 0) {
 		LOG_VERBOSE(footer->logger, "invalid real cheksum: %u)\n",
 		    footer->calculated_checksum);
+	} else {
+		LOG_VERBOSE(footer->logger, "valid)\n");
 	}
 
 	LOG_VERBOSE(footer->logger, "Unique id:\t\t%s", uuid_str);
@@ -257,17 +260,25 @@ vhdfooter_destroy(struct vhdfooter **footer)
 /*
  * Returns true if the checksum for the footer is valid.
  */
-bool
-vhdfooter_isvalid(struct vhdfooter *footer)
+enum vhdfooter_status
+vhdfooter_getstatus(struct vhdfooter *footer)
 {
-	return footer->checksum == footer->calculated_checksum;
+	enum vhdfooter_status result = VHDFOOTER_OK;
+
+	if (strcmp(footer->cookie, "conectix") != 0) {
+		result |= VHDFOOTER_BADCOOKIE;
+	}
+	if (footer->checksum != footer->calculated_checksum) {
+		result |= VHDFOOTER_BADCHECKSUM;
+	}
+	return result;
 }
 
 /*
  * Returns the disk type that this footer represents.
  */
 enum disk_type
-vhdfooter_disk_type(struct vhdfooter *footer)
+vhdfooter_getdisktype(struct vhdfooter *footer)
 {
 	switch (footer->disk_type) {
 	case VHD_TYPE_FIXED:
