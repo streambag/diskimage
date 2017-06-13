@@ -75,7 +75,7 @@ read_bat_data(struct vhdinstance *instance)
 	bat_offset = vhd_header_table_offset(instance->header);
 	bat_size = vhd_header_max_table_entries(instance->header);
 
-	file_getmap(instance->file, bat_offset, bat_offset + bat_size, &map, instance->logger);
+	file_getmap(instance->file, bat_offset, bat_offset + bat_size * 4, &map, instance->logger);
 	result = vhd_bat_new(map->pointer, &instance->bat, bat_size, instance->logger);
 	filemap_destroy(&map);
 
