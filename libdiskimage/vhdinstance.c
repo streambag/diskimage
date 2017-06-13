@@ -491,7 +491,7 @@ write_dynamic(struct vhdinstance *instance, char *buf, size_t nbytes, off_t offs
 			bat_offset = vhd_header_table_offset(instance->header);
 			bat_size = vhd_header_max_table_entries(instance->header);
 
-			file_getmap(instance->file, bat_offset, bat_offset + bat_size, &map, instance->logger);
+			file_getmap(instance->file, bat_offset, bat_offset + bat_size * 4, &map, instance->logger);
 			vhd_bat_write(instance->bat, map->pointer);
 			filemap_destroy(&map);
 
