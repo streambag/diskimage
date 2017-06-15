@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <uuid.h>
 #include <errno.h>
+#include <iconv.h>
 
 #include "diskimage.h"
 #include "internal.h"
@@ -51,18 +52,43 @@ struct vhd_header {
 	/* Other helper objects. */
 	uint32_t calculated_checksum;
 	struct logger logger;
+	char parent_local_name[513];
 };
 
+/*
+ * Calculates the partial checksum for a parent locator entry
+ */
 uint32_t
 checksum_parent_locator_entry(struct parent_locator_entry *parent_locator_entry)
 {
 	return checksum_chars(parent_locator_entry->dummy, 28);
 };
 
+/*
+ * Reads a parent locator entry from the file
+ */
 void
 read_parent_locator_entry(uint8_t *source, struct parent_locator_entry *parent_locator_entry)
 {
 	read_chars(source, &parent_locator_entry->dummy, 28);
+}
+
+/*
+ * Converts a UTF16 string to the local charset
+ */
+void
+convert_utf16_to_local(char *source, char *destination, size_t count)
+{
+	iconv_t converter;
+	size_t source_left, destination_left;
+
+	converter = iconv_open("", "UTF-16");
+	source_left = count;
+	destination_left = count;
+
+	iconv(converter, &source, &source_left, &destination, &destination_left);
+	destination[count] = 0;
+	iconv_close(converter);
 }
 
 /*
@@ -111,6 +137,12 @@ read_header(void *source, struct vhd_header *header)
 	read_uuid(bytes + PARENT_UNIQUE_ID_OFFSET, &header->parent_unique_id);
 	header->parent_time_stamp = read_int32(bytes + PARENT_TIME_STAMP_OFFSET);
 	read_chars(bytes + PARENT_UNICODE_NAME_OFFSET, &header->parent_unicode_name, 512);
+
+	/*
+	 * Convert the parent name to the current locale and store it in
+	 * parent_local_name
+	 */
+	convert_utf16_to_local(header->parent_unicode_name, header->parent_local_name, 512);
 
 	for (i = 0; i < 8; i++) {
 		read_parent_locator_entry(
@@ -183,7 +215,7 @@ log_header(struct vhd_header *header)
 	free(uuid_str);
 
 	LOG_VERBOSE(header->logger, "Parent time stamp:\t%d\n", header->parent_time_stamp);
-	LOG_VERBOSE(header->logger, "Parent unicode name:\t%s\n", header->parent_unicode_name);
+	LOG_VERBOSE(header->logger, "Parent unicode name:\t%s\n", header->parent_local_name);
 }
 
 /*
