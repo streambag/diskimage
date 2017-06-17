@@ -27,12 +27,29 @@
 /* There are 8 parent locator entries each 24 bytes long. */
 #define PARENT_LOCATOR_ENTRIES_OFFSET 576
 
+#define PARENT_LOCATOR_CODE_OFFSET 0
+#define PARENT_LOCATOR_DATA_SPACE_OFFSET 4
+#define PARENT_LOCATOR_DATA_LENGTH_OFFSET 8
+#define PARENT_LOCATOR_RESERVED_OFFSET 12
+#define PARENT_LOCATOR_DATA_OFFSET 16
+
 struct parent_locator_entry {
+	/* A code describing the parent locator platform. */
+	char	platform_code[5];
 	/*
-	 * Since we don't support differencing disks yet, just read data
-	 * into a dummy string.
+	 * The number of bytes used to store the parent locator data,
+	 * including padding at the end to make it a full block.
+	 * NOTE: The VHD image format specification incorrectly states
+	 *	     that this is the number of 512 byte blocks needed,
+	 *	     rather than the total number of bytes.
 	 */
-	char	dummy[24];
+	uint32_t platform_data_space;
+	/* The number of bytes of the data, excluding padding. */
+	uint32_t platform_data_length;
+	/* Reserved (padding) bytes, needed for the checksum.*/
+	char	reserved[5];
+	/* The absolute offset to the data. */
+	uint64_t platform_data_offset;
 };
 
 struct vhd_header {
@@ -61,7 +78,15 @@ struct vhd_header {
 uint32_t
 checksum_parent_locator_entry(struct parent_locator_entry *parent_locator_entry)
 {
-	return checksum_chars(parent_locator_entry->dummy, 28);
+	uint32_t result = 0;
+
+	result += checksum_chars(parent_locator_entry->platform_code, 4);
+	result += checksum_uint32(parent_locator_entry->platform_data_space);
+	result += checksum_uint32(parent_locator_entry->platform_data_length);
+	result += checksum_chars(parent_locator_entry->reserved, 4);
+	result += checksum_uint64(parent_locator_entry->platform_data_offset);
+
+	return result;
 };
 
 /*
@@ -70,7 +95,11 @@ checksum_parent_locator_entry(struct parent_locator_entry *parent_locator_entry)
 void
 read_parent_locator_entry(uint8_t *source, struct parent_locator_entry *parent_locator_entry)
 {
-	read_chars(source, &parent_locator_entry->dummy, 28);
+	read_chars(source + PARENT_LOCATOR_CODE_OFFSET, &parent_locator_entry->platform_code, 4);
+	parent_locator_entry->platform_data_space = read_uint32(source + PARENT_LOCATOR_DATA_SPACE_OFFSET);
+	parent_locator_entry->platform_data_length = read_uint32(source + PARENT_LOCATOR_DATA_LENGTH_OFFSET);
+	read_chars(source + PARENT_LOCATOR_RESERVED_OFFSET, &parent_locator_entry->reserved, 4);
+	parent_locator_entry->platform_data_offset = read_uint64(source + PARENT_LOCATOR_DATA_OFFSET);
 }
 
 /*
@@ -193,6 +222,7 @@ void
 log_header(struct vhd_header *header)
 {
 	char *uuid_str;
+	int i;
 
 	LOG_VERBOSE(header->logger, "Header:\n");
 	LOG_VERBOSE(header->logger, "Cookie:\t\t\t%s\n", header->cookie);
@@ -200,13 +230,16 @@ log_header(struct vhd_header *header)
 	LOG_VERBOSE(header->logger, "Table offset:\t\t%lu\n", header->table_offset);
 	LOG_VERBOSE(header->logger, "Header version:\t\t%d.%d\n",
 	    header->header_version.major, header->header_version.minor);
-	LOG_VERBOSE(header->logger, "Max table entries:\t%d\n", header->max_table_entries);
-	LOG_VERBOSE(header->logger, "Block size:\t\t%d\n", header->block_size);
-	LOG_VERBOSE(header->logger, "Checksum:\t\t%u (", header->checksum);
+	LOG_VERBOSE(header->logger, "Max table entries:\t%d\n",
+		header->max_table_entries);
+	LOG_VERBOSE(header->logger, "Block size:\t\t%d\n",
+		header->block_size);
+	LOG_VERBOSE(header->logger, "Checksum:\t\t%u (",
+		header->checksum);
 	if (vhd_header_isvalid(header)) {
 		LOG_VERBOSE(header->logger, "valid)\n");
 	} else {
-		LOG_VERBOSE(header->logger, "invalid real cheksum: %u)\n",
+		LOG_VERBOSE(header->logger, "invalid, real cheksum: %u)\n",
 		    header->calculated_checksum);
 	}
 
@@ -214,8 +247,24 @@ log_header(struct vhd_header *header)
 	LOG_VERBOSE(header->logger, "Parent unique id:\t%s\n", uuid_str);
 	free(uuid_str);
 
-	LOG_VERBOSE(header->logger, "Parent time stamp:\t%d\n", header->parent_time_stamp);
-	LOG_VERBOSE(header->logger, "Parent unicode name:\t%s\n", header->parent_local_name);
+	LOG_VERBOSE(header->logger, "Parent time stamp:\t%d\n",
+		header->parent_time_stamp);
+	LOG_VERBOSE(header->logger, "Parent unicode name:\t%s\n",
+		header->parent_local_name);
+
+	for (i = 0; i < 8; i++) {
+		if (header->parent_locator_entries[i].platform_code[0] != 0) {
+			LOG_VERBOSE(header->logger, "Parent locator entry %d:\n", i);
+			LOG_VERBOSE(header->logger, "\tPlatform Code:\t%s\n",
+			    header->parent_locator_entries[i].platform_code);
+			LOG_VERBOSE(header->logger, "\tPlatform Data Space:\t%u\n",
+			    header->parent_locator_entries[i].platform_data_space);
+			LOG_VERBOSE(header->logger, "\tPlatform Data Length:\t%u\n",
+			    header->parent_locator_entries[i].platform_data_length);
+			LOG_VERBOSE(header->logger, "\tPlatform Data Offset:\t%lu\n",
+			    header->parent_locator_entries[i].platform_data_offset);
+		}
+	}
 }
 
 /*
